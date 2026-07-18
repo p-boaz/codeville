@@ -84,6 +84,59 @@ export function parseCompletionDebrief(text: string | null | undefined): Complet
   return result?.status === 'completed' ? result.debrief : null;
 }
 
+export interface RawCompletionAccount {
+  landed: string;
+  followUp: string;
+  followUpRecommended: boolean;
+}
+
+/**
+ * Privileged-process-only parse of the completion marker WITHOUT wall-register
+ * sanitization. Held transiently until the session diff is known, validated
+ * into the desk register against the changed-path list, then discarded.
+ */
+export function parseRawCompletionAccount(text: string | null | undefined): RawCompletionAccount | null {
+  if (!text) return null;
+  const index = text.lastIndexOf(marker);
+  if (index < 0) return null;
+  const line = text.slice(index + marker.length).split(/\r?\n/, 1)[0]?.trim();
+  if (!line) return null;
+  try {
+    const candidate = JSON.parse(line) as Record<string, unknown>;
+    if (candidate?.status !== 'completed' || typeof candidate.landed !== 'string' || typeof candidate.followUp !== 'string') return null;
+    return {
+      // eslint-disable-next-line no-control-regex
+      landed: candidate.landed.replace(/[\u0000-\u001f]/g, ' ').slice(0, 500),
+      // eslint-disable-next-line no-control-regex
+      followUp: candidate.followUp.replace(/[\u0000-\u001f]/g, ' ').slice(0, 500),
+      followUpRecommended: candidate.followUpRecommended === true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Desk-register sanitizer: longer bound, and dotted or path-like tokens are
+ * allowed only when they name a file the session actually changed (verified
+ * against the scaffold diffstat). Everything else keeps the strict rules —
+ * verified identifiers are information, unverifiable ones are noise or leaks.
+ */
+export function sanitizeDeskAccountText(value: string, changedPaths: string[]): string | null {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  if (!normalized || normalized.length > 240) return null;
+  if (/https?:|www\.|\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/i.test(normalized)) return null;
+  if (/\b(sk-[a-z0-9_-]+|api[_-]?key|secret|token|password)\b/i.test(normalized)) return null;
+  if (/\b(?:const|let|var|function|class|import|export|SELECT|INSERT|DELETE|UPDATE)\b|=>|;\s*$/i.test(normalized)) return null;
+  if (/[\\`$<>{}|[\]]/.test(normalized)) return null;
+  const verified = new Set(changedPaths.flatMap((path) => [path, path.split('/').at(-1) ?? path]));
+  for (const match of normalized.matchAll(/[\w$/.-]*[\w$][./][\w$/.-]+/g)) {
+    const token = match[0].replace(/[.,;:!?]+$/, '');
+    if (!verified.has(token)) return null;
+  }
+  return normalized;
+}
+
 export function resumablePendingInput(): SafePendingInput {
   return {
     source: 'resumable',

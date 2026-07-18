@@ -4,9 +4,9 @@ import { access, cp, mkdir, rm, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { promisify } from 'node:util';
 
-import { app, BrowserWindow, clipboard, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Notification } from 'electron';
 
-import { parseCodevilleResult } from '../src/codex/debrief';
+import { parseCodevilleResult, parseRawCompletionAccount, sanitizeDeskAccountText } from '../src/codex/debrief';
 import { translateCodexMessage } from '../src/codex/translator';
 import type {
   ApprovalDecision,
@@ -34,6 +34,9 @@ const useDevelopmentRenderer = isDevelopment && process.env.CODEVILLE_E2E !== '1
 const demoNames = ['Acorn Tasks', 'Lantern API', 'Mossy Docs', 'Pine Tests', 'Willow UI'] as const;
 
 if (process.env.CODEVILLE_USER_DATA_DIR) app.setPath('userData', process.env.CODEVILLE_USER_DATA_DIR);
+// E2E runs several Electron instances back-to-back; software rendering keeps the
+// renderer alive under GPU pressure. Production rendering is unaffected.
+if (process.env.CODEVILLE_E2E === '1') app.disableHardwareAcceleration();
 
 let window: BrowserWindow | null = null;
 let client: AppServerClient | null = null;
@@ -93,15 +96,20 @@ function sendVillageEvents(notification: ServerNotification): void {
   const completionResult = notification.method === 'turn/completed'
     ? parseCodevilleResult(runtime.lastAgentMessage)
     : undefined;
-  if (notification.method === 'turn/completed') runtime.lastAgentMessage = null;
+  if (notification.method === 'turn/completed') {
+    runtime.rawCompletion = parseRawCompletionAccount(runtime.lastAgentMessage);
+    runtime.lastAgentMessage = null;
+  }
   const events = translateCodexMessage(notification, { model, completionResult });
   for (const event of events) {
     runtime.safeEventCount += 1;
+    if (event.type === 'tests_passed') runtime.testsPassed = true;
+    if (event.type === 'tests_failed') runtime.testsPassed = false;
     if (event.type === 'session_completed') {
       runtime.turnId = null;
       void store.recordCompletion(runtime.projectId, event.at, event.debrief, runtime.safeEventCount, runtime.turnStartedAt).then(async () => {
         window?.webContents.send('village:event', { projectId: runtime.projectId, event });
-        await announceDiffReady(runtime.projectId);
+        await announceDiffReady(runtime);
         cleanupRuntime(runtime);
       });
     } else if (event.type === 'input_required' && notification.method === 'turn/completed') {
@@ -115,7 +123,7 @@ function sendVillageEvents(notification: ServerNotification): void {
       runtime.turnId = null;
       void store.recordNeedsReview(runtime.projectId, runtime.threadId, runtime.safeEventCount, runtime.turnStartedAt).then(async () => {
         window?.webContents.send('village:event', { projectId: runtime.projectId, event });
-        await announceDiffReady(runtime.projectId);
+        await announceDiffReady(runtime);
         cleanupRuntime(runtime);
       });
     } else {
@@ -135,7 +143,8 @@ function cleanupRuntime(runtime: ProjectRuntime): void {
  * register never carries paths or patches). An untouched scaffold is discarded
  * so the lot returns to a startable state.
  */
-async function announceDiffReady(projectId: string): Promise<void> {
+async function announceDiffReady(runtime: ProjectRuntime): Promise<void> {
+  const projectId = runtime.projectId;
   try {
     const record = await scaffolds.forProject(projectId);
     if (!record) return;
@@ -145,10 +154,22 @@ async function announceDiffReady(projectId: string): Promise<void> {
       await scaffolds.discard(record);
       return;
     }
+    // Desk account: model prose survives only where the diffstat vouches for it.
+    const raw = runtime.rawCompletion ?? null;
+    runtime.rawCompletion = null;
+    await scaffolds.saveOutcome(record, {
+      testsPassed: runtime.testsPassed ?? null,
+      durationMs: runtime.turnStartedAt ? Math.max(0, Date.now() - Date.parse(runtime.turnStartedAt)) : null,
+      deskLanded: raw ? sanitizeDeskAccountText(raw.landed, stats.changedPaths) : null,
+      deskFollowUp: raw ? sanitizeDeskAccountText(raw.followUp, stats.changedPaths) : null,
+      followUpRecommended: raw?.followUpRecommended ?? true,
+    });
     window?.webContents.send('village:event', {
       projectId,
       event: { type: 'diff_ready', at: new Date().toISOString(), filesChanged: stats.filesChanged, insertions: stats.insertions, deletions: stats.deletions },
     });
+    void notifyAttention(projectId, `Improvement ready for inspection: ${stats.filesChanged} file${stats.filesChanged === 1 ? '' : 's'} changed, +${stats.insertions} −${stats.deletions}.`);
+    void updateAttentionBadge();
   } catch (cause) {
     console.warn(`[scaffold] finalize failed for ${projectId}: ${cause instanceof Error ? cause.message : String(cause)}`);
   }
@@ -158,6 +179,29 @@ async function requireScaffold(projectId: string): Promise<ScaffoldRecord> {
   const record = await scaffolds.forProject(projectId);
   if (!record) throw new Error('This project has no pending improvement to inspect');
   return record;
+}
+
+/** Dock badge = decisions waiting on the operator: approvals, replies, uninspected improvements. */
+async function updateAttentionBadge(): Promise<void> {
+  try {
+    const landable = (await scaffolds.listOrphans(new Set())).filter((record) => record.outcome).length;
+    app.setBadgeCount(pendingApprovals.size + pendingInputs.size + landable);
+  } catch {
+    // The badge is a convenience; never let it break session flow.
+  }
+}
+
+/** Safe-register notification when the window is in the background. Click focuses the lot. */
+async function notifyAttention(projectId: string, body: string): Promise<void> {
+  if (!Notification.isSupported() || (window && window.isFocused())) return;
+  const name = (await store.read()).projects[projectId]?.repositoryName ?? 'A workshop';
+  const notification = new Notification({ title: `Codeville — ${name}`, body });
+  notification.on('click', () => {
+    window?.show();
+    window?.focus();
+    window?.webContents.send('village:focus-project', projectId);
+  });
+  notification.show();
 }
 
 function handleServerRequest(request: ServerRequest): void {
@@ -175,6 +219,8 @@ function handleServerRequest(request: ServerRequest): void {
     void store.recordWaiting(runtime.projectId, runtime.threadId, event.input, runtime.safeEventCount, runtime.turnStartedAt);
     window?.webContents.send('input:request', { projectId: runtime.projectId, request: view });
     window?.webContents.send('village:event', { projectId: runtime.projectId, event });
+    void notifyAttention(runtime.projectId, 'The builder needs your input to continue.');
+    void updateAttentionBadge();
     return;
   }
   const requestId = String(request.id);
@@ -183,6 +229,8 @@ function handleServerRequest(request: ServerRequest): void {
   for (const event of translateCodexMessage(request, { model })) {
     window?.webContents.send('village:event', { projectId: runtime.projectId, event });
   }
+  void notifyAttention(runtime.projectId, 'The builder is waiting for your approval.');
+  void updateAttentionBadge();
   showNextApproval();
 }
 
@@ -196,6 +244,7 @@ function resolveServerRequest(requestId: string): void {
     if (visibleApprovalId === requestId) visibleApprovalId = null;
     showNextApproval();
   }
+  void updateAttentionBadge();
 }
 
 function showNextApproval(): void {
@@ -229,6 +278,7 @@ function respondToApproval(requestId: string, decision: ApprovalDecision): void 
   } else throw new Error(`Unsupported approval response: ${request.method}`);
   pendingApprovals.delete(requestId);
   if (visibleApprovalId === requestId) visibleApprovalId = null;
+  void updateAttentionBadge();
   showNextApproval();
 }
 
@@ -239,6 +289,7 @@ async function respondToInput(projectId: string, requestId: string | null, answe
   const runtime = runtimes.forProject(projectId);
   client.respond(pending.request.id, inputResponse(pending.request, answers));
   pendingInputs.delete(requestId);
+  void updateAttentionBadge();
   window?.webContents.send('input:request', { projectId, request: null });
   if (runtime) await store.recordThread(projectId, runtime.threadId, runtime.turnStartedAt ?? new Date().toISOString(), runtime.safeEventCount);
   window?.webContents.send('village:event', { projectId, event: { type: 'input_resolved', at: new Date().toISOString() } });
@@ -422,6 +473,7 @@ function registerIpc(): void {
       filesChanged: stats.filesChanged,
       insertions: stats.insertions,
       deletions: stats.deletions,
+      outcome: record.outcome ?? null,
     };
   });
   ipcMain.handle('scaffold:diff', async (_event, projectId: string) => {
@@ -449,6 +501,7 @@ function registerIpc(): void {
     const result = await scaffolds.apply(record, `${summary}\n\nCodeville session ${record.sessionId}`);
     await scaffolds.discard(record);
     window?.webContents.send('village:event', { projectId, event: { type: 'session_applied', at: new Date().toISOString(), commit: result.commit.slice(0, 10) } });
+    void updateAttentionBadge();
     return result;
   });
   ipcMain.handle('scaffold:keep', async (_event, projectId: string) => {
@@ -457,6 +510,7 @@ function registerIpc(): void {
     await scaffolds.checkpoint(record);
     await scaffolds.keep(record);
     window?.webContents.send('village:event', { projectId, event: { type: 'session_kept', at: new Date().toISOString(), branch: record.branch } });
+    void updateAttentionBadge();
     return { branch: record.branch };
   });
   ipcMain.handle('scaffold:discard', async (_event, projectId: string) => {
@@ -464,6 +518,7 @@ function registerIpc(): void {
     const record = await requireScaffold(projectId);
     await scaffolds.discard(record);
     window?.webContents.send('village:event', { projectId, event: { type: 'session_discarded', at: new Date().toISOString() } });
+    void updateAttentionBadge();
   });
   ipcMain.handle('session:reclaim', async (_event, projectId: string) => {
     const progress = (await store.read()).projects[projectId];
@@ -486,6 +541,7 @@ app.whenReady().then(() => {
   scaffolds = new ScaffoldManager(join(app.getPath('userData'), 'scaffolds'));
   registerIpc();
   createWindow();
+  void updateAttentionBadge();
 });
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 app.on('before-quit', () => { void client?.stop(); });

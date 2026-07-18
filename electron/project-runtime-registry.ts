@@ -1,3 +1,5 @@
+import type { RawCompletionAccount } from '../src/codex/debrief';
+
 export interface ProjectRuntime {
   projectId: string;
   threadId: string;
@@ -5,6 +7,10 @@ export interface ProjectRuntime {
   lastAgentMessage: string | null;
   safeEventCount: number;
   turnStartedAt: string | null;
+  /** Truthful test telemetry for the current turn; the model cannot claim it. */
+  testsPassed?: boolean | null;
+  /** Unsanitized completion account, held transiently until the diff is known. */
+  rawCompletion?: RawCompletionAccount | null;
 }
 
 export class ProjectRuntimeRegistry {

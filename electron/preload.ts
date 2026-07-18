@@ -43,6 +43,11 @@ const bridge: CodevilleBridge = {
     ipcRenderer.on('input:request', wrapped);
     return () => ipcRenderer.removeListener('input:request', wrapped);
   },
+  onFocusProject: (listener) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, projectId: string) => listener(projectId);
+    ipcRenderer.on('village:focus-project', wrapped);
+    return () => ipcRenderer.removeListener('village:focus-project', wrapped);
+  },
 };
 
 contextBridge.exposeInMainWorld('codeville', bridge);

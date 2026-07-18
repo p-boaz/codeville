@@ -1,6 +1,16 @@
 import { useState } from 'react';
 
-import type { PendingScaffoldView, SessionDiffView } from '../../shared/village-events';
+import type { PendingScaffoldView, SessionDiffView, SessionOutcome } from '../../shared/village-events';
+
+function factLine(outcome: SessionOutcome): string {
+  const parts: string[] = [];
+  if (outcome.testsPassed !== null) parts.push(outcome.testsPassed ? 'tests passed' : 'tests failed');
+  if (outcome.durationMs !== null) {
+    const totalSeconds = Math.round(outcome.durationMs / 1000);
+    parts.push(totalSeconds >= 60 ? `${Math.floor(totalSeconds / 60)}m ${totalSeconds % 60}s` : `${totalSeconds}s`);
+  }
+  return parts.join(' · ');
+}
 
 interface InspectionCardProps {
   scaffold: PendingScaffoldView;
@@ -29,8 +39,17 @@ export function InspectionCard({ scaffold, diff, busy, error, onLoadDiff, onClos
         <strong>{scaffold.filesChanged} file{scaffold.filesChanged === 1 ? '' : 's'} changed</strong>
         <span className="diff-insertions">+{scaffold.insertions}</span>
         <span className="diff-deletions">−{scaffold.deletions}</span>
+        {scaffold.outcome && <span className="fact-line" aria-label="Verified session facts">{factLine(scaffold.outcome)}</span>}
       </div>
       <p className="inspection-base">On branch <code>{scaffold.branch}</code>, built from “{scaffold.baseSubject}”. Your checkout is untouched until you apply.</p>
+
+      {scaffold.outcome?.deskLanded && (
+        <div className="desk-account" aria-label="Builder's verified account">
+          <strong>Builder's account</strong>
+          <p>{scaffold.outcome.deskLanded}</p>
+          {scaffold.outcome.deskFollowUp && <p className="desk-followup">{scaffold.outcome.followUpRecommended ? '↗ ' : ''}{scaffold.outcome.deskFollowUp}</p>}
+        </div>
+      )}
 
       {diff ? (
         <div className="diff-view" aria-label="Session diff">

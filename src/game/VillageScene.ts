@@ -18,10 +18,14 @@ const palette = { grass: 0x74a85b, grassLight: 0x91bd69, soil: 0x654b39, path: 0
 const positions = [{ x: -290, y: -105 }, { x: 0, y: -148 }, { x: 290, y: -105 }, { x: -155, y: 145 }, { x: 155, y: 145 }];
 const actorColors = [0x4d7f75, 0x5c7196, 0x8b6653, 0x6f8050, 0x856383];
 
+const needsYouPhases = new Set<SessionPhase>(['approval', 'input', 'waiting']);
+
 export class VillageScene {
   readonly root = new Container();
   private readonly world = new Container();
   private readonly lots = positions.map((position, index) => new ProjectLot(index as VillageLot['slot'], position.x, position.y, actorColors[index]));
+  private readonly signpost = new Container();
+  private readonly signpostText: Text;
   private width = 1;
   private height = 1;
 
@@ -34,11 +38,23 @@ export class VillageScene {
     ground.poly([-440, -75, 440, -75, 430, 5, -430, 5]).fill({ color: palette.path, alpha: 0.55 });
     this.world.addChild(ground);
     for (const lot of this.lots) this.world.addChild(lot.container);
+    const signBoard = new Graphics();
+    signBoard.roundRect(-92, -16, 184, 32, 8).fill({ color: palette.ink, alpha: 0.82 }).stroke({ color: 0xe4bd68, width: 1.5 });
+    signBoard.rect(-3, 16, 6, 20).fill(palette.timber);
+    this.signpostText = new Text({ text: '', style: textStyle(12, 0xffd875, '700') });
+    this.signpostText.anchor.set(0.5);
+    this.signpost.addChild(signBoard, this.signpostText);
+    this.signpost.position.set(0, 285);
+    this.signpost.visible = false;
+    this.world.addChild(this.signpost);
     this.root.addChild(this.world);
   }
 
   update(snapshots: ProjectSnapshot[]): void {
     for (const snapshot of snapshots) this.lots[snapshot.slot].update(snapshot);
+    const needsYou = snapshots.filter((snapshot) => snapshot.projectId && needsYouPhases.has(snapshot.phase)).length;
+    this.signpost.visible = needsYou > 0;
+    if (needsYou > 0) this.signpostText.text = needsYou === 1 ? '1 builder needs you' : `${needsYou} builders need you`;
   }
 
   tick(deltaMs: number): void {
@@ -64,7 +80,11 @@ class ProjectLot {
   private readonly bubble = new Container();
   private readonly bubbleText: Text;
   private readonly actor: BuilderActor;
+  private readonly lantern = new Container();
+  private readonly pennant = new Graphics();
   private currentSignature = '';
+  private currentPhase: SessionPhase = 'idle';
+  private pulse = 0;
 
   constructor(private readonly slot: VillageLot['slot'], x: number, y: number, actorColor: number) {
     this.container.position.set(x, y);
@@ -87,16 +107,31 @@ class ProjectLot {
     this.bubble.addChild(bubbleBackground, this.bubbleText);
     this.bubble.position.set(0, -78);
     this.bubble.visible = false;
-    this.container.addChild(this.base, this.house, this.actor.container, this.signText, this.statusText, this.bubble);
+    const lanternGlow = new Graphics().circle(0, 0, 13).fill({ color: 0xffd875, alpha: 0.35 });
+    const lanternBody = new Graphics();
+    lanternBody.roundRect(-4, -6, 8, 12, 3).fill(0xe8b85b).stroke({ color: palette.timber, width: 1.5 });
+    lanternBody.circle(0, 0, 2.5).fill(0xfff4d9);
+    this.lantern.addChild(lanternGlow, lanternBody);
+    this.lantern.position.set(4, 30);
+    this.lantern.visible = false;
+    this.pennant.moveTo(0, 0).lineTo(0, -26).stroke({ color: palette.timber, width: 2 });
+    this.pennant.poly([0, -26, 20, -20, 0, -14]).fill(0xffd875);
+    this.pennant.position.set(3, -95);
+    this.pennant.visible = false;
+    this.container.addChild(this.base, this.house, this.pennant, this.actor.container, this.lantern, this.signText, this.statusText, this.bubble);
   }
 
   update(snapshot: ProjectSnapshot): void {
+    this.currentPhase = snapshot.phase;
     this.actor.container.visible = Boolean(snapshot.projectId);
     this.actor.update(snapshot.phase);
     this.signText.text = trim(snapshot.projectName, 22);
     this.statusText.text = phaseLabel(snapshot.phase);
-    this.base.tint = snapshot.selected ? 0xffffff : 0xe1eadb;
-    this.container.alpha = snapshot.projectId ? 1 : 0.48;
+    const needsYou = Boolean(snapshot.projectId) && needsYouPhases.has(snapshot.phase);
+    this.lantern.visible = needsYou;
+    this.pennant.visible = Boolean(snapshot.projectId) && snapshot.phase === 'reviewing';
+    this.base.tint = needsYou ? 0xffe9b8 : snapshot.selected ? 0xffffff : 0xe1eadb;
+    this.container.alpha = snapshot.projectId ? (snapshot.phase === 'failed' ? 0.82 : 1) : 0.48;
     const signature = `${snapshot.projectId}-${snapshot.level}-${snapshot.phase === 'completed'}`;
     if (signature !== this.currentSignature) {
       this.house.removeChildren().forEach((child) => child.destroy({ children: true }));
@@ -112,6 +147,15 @@ class ProjectLot {
 
   tick(deltaMs: number): void {
     this.actor.tick(deltaMs);
+    if (this.lantern.visible) {
+      this.pulse += deltaMs;
+      this.lantern.alpha = 0.7 + Math.sin(this.pulse / 320) * 0.3;
+      this.lantern.position.set(this.actor.container.x + 14, this.actor.container.y - 18);
+    }
+    if (this.pennant.visible && this.currentPhase === 'reviewing') {
+      this.pulse += deltaMs;
+      this.pennant.alpha = 0.75 + Math.sin(this.pulse / 500) * 0.25;
+    }
     if (this.bubble.visible) {
       this.bubble.alpha += (1 - this.bubble.alpha) * Math.min(deltaMs / 150, 1);
       this.bubble.scale.set(0.96 + this.bubble.alpha * 0.04);

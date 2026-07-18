@@ -18,6 +18,11 @@ function launchOptions(userData: string, extraEnv: NodeJS.ProcessEnv = {}) {
   };
 }
 
+/** A renderer crash silently reloads the page and turns into misleading assertion flakes — fail loudly instead. */
+function failOnRendererCrash(page: Page): void {
+  page.on('crash', () => { throw new Error('The Codeville renderer crashed during the test'); });
+}
+
 test('deterministic protocol: native input, stopped-turn continuation, review, relaunch, handoff, and sibling routing', async () => {
   test.setTimeout(180_000);
   const root = await mkdtemp(join(tmpdir(), 'codeville-protocol-e2e-'));
@@ -32,6 +37,7 @@ test('deterministic protocol: native input, stopped-turn continuation, review, r
 
   try {
     let page = await electronApp.firstWindow();
+    failOnRendererCrash(page);
     for (const [slot, repository] of repositories.entries()) await chooseRepository(electronApp, page, slot, repository);
 
     for (const [slot, task, phase] of [[2, 'fixture:complete sibling', 'completed'], [3, 'fixture:review', 'needs_review'], [1, 'fixture:waiting', 'waiting'], [0, 'fixture:native', 'input']] as const) {
@@ -59,6 +65,7 @@ test('deterministic protocol: native input, stopped-turn continuation, review, r
     await electronApp.close();
     electronApp = await electron.launch(launchOptions(userData, fixtureEnv));
     page = await electronApp.firstWindow();
+    failOnRendererCrash(page);
     await page.getByRole('button', { name: /waiting/i }).click();
     await expect(page.getByText('Which fixture channel should continue?')).toBeVisible();
     await page.getByLabel('Stable').click();
@@ -120,6 +127,7 @@ test('assigns, restores, isolates tasks, and confirms a selected real-project su
 
   try {
     let page = await electronApp.firstWindow();
+    failOnRendererCrash(page);
     await chooseRepository(electronApp, page, 0, graphletter);
     await page.getByPlaceholder('Describe one concrete coding task').fill('Improve graph export');
     await chooseRepository(electronApp, page, 1, kalshi);
@@ -151,6 +159,7 @@ test(`runs ${projectCount} real Codex builders without replacing the village can
 
   try {
     const page = await electronApp.firstWindow();
+    failOnRendererCrash(page);
     await expect(page.getByText('Build a five-project demo village')).toBeVisible();
     await page.getByRole('button', { name: /create demo village/i }).first().click();
     if (await page.getByRole('alert').isVisible()) throw new Error(`Demo preparation failed: ${await page.getByRole('alert').innerText()}`);
@@ -195,6 +204,7 @@ test(`runs ${projectCount} real Codex builders without replacing the village can
     await electronApp.close();
     electronApp = await electron.launch(launchOptions(userData));
     const relaunchedPage = await electronApp.firstWindow();
+    failOnRendererCrash(relaunchedPage);
     for (const name of projectNames) await expect(relaunchedPage.getByRole('button', { name: new RegExp(name) })).toBeVisible();
     await relaunchedPage.getByRole('button', { name: /Acorn Tasks/ }).click();
     await expect(relaunchedPage.getByLabel('1 completed sessions')).toBeVisible();
@@ -216,6 +226,7 @@ test('opt-in: runs explicitly supplied real repositories concurrently', async ()
   const electronApp = await electron.launch(launchOptions(userData));
   try {
     const page = await electronApp.firstWindow();
+    failOnRendererCrash(page);
     for (const [slot, project] of projects.entries()) {
       await chooseRepository(electronApp, page, slot, resolve(project.path));
       await page.getByPlaceholder('Describe one concrete coding task').fill(project.task);

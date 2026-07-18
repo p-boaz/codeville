@@ -156,6 +156,15 @@ export interface StartSessionResult {
   model: string;
 }
 
+/** Telemetry facts plus the diffstat-verified desk account for one session. */
+export interface SessionOutcome {
+  testsPassed: boolean | null;
+  durationMs: number | null;
+  deskLanded: string | null;
+  deskFollowUp: string | null;
+  followUpRecommended: boolean;
+}
+
 /** Safe scaffold summary: counts and branch only, no paths or code. */
 export interface PendingScaffoldView {
   projectId: string;
@@ -165,6 +174,7 @@ export interface PendingScaffoldView {
   filesChanged: number;
   insertions: number;
   deletions: number;
+  outcome: SessionOutcome | null;
 }
 
 export interface SessionDiffFile {
@@ -215,6 +225,7 @@ export interface CodevilleBridge {
   onVillageEvent(listener: (event: ProjectVillageEvent) => void): () => void;
   onApprovalRequest(listener: (request: ApprovalRequestView | null) => void): () => void;
   onInputRequest(listener: (update: InputRequestUpdate) => void): () => void;
+  onFocusProject(listener: (projectId: string) => void): () => void;
 }
 
 declare global {

@@ -98,7 +98,15 @@ export function App() {
         });
       }
     });
-    return () => { unsubscribeEvent(); unsubscribeApproval(); unsubscribeInput(); };
+    const unsubscribeFocus = window.codeville.onFocusProject((projectId) => {
+      setSelectedProjectId(projectId);
+      setProgression((current) => {
+        const lot = current.lots.find((candidate) => candidate.projectId === projectId);
+        if (lot) setSelectedSlot(lot.slot);
+        return current;
+      });
+    });
+    return () => { unsubscribeEvent(); unsubscribeApproval(); unsubscribeInput(); unsubscribeFocus(); };
   }, []);
 
   const selectedLot = progression.lots[selectedSlot];

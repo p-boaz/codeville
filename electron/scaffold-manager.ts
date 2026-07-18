@@ -5,6 +5,15 @@ import { promisify } from 'node:util';
 
 const executeFile = promisify(execFile);
 
+/** Session outcome: telemetry facts plus the diffstat-verified desk account. */
+export interface ScaffoldOutcome {
+  testsPassed: boolean | null;
+  durationMs: number | null;
+  deskLanded: string | null;
+  deskFollowUp: string | null;
+  followUpRecommended: boolean;
+}
+
 export interface ScaffoldRecord {
   projectId: string;
   sessionId: string;
@@ -14,6 +23,7 @@ export interface ScaffoldRecord {
   baseCommit: string;
   baseSubject: string;
   createdAt: string;
+  outcome?: ScaffoldOutcome | null;
 }
 
 export interface ScaffoldDiffStats {
@@ -157,6 +167,12 @@ export class ScaffoldManager {
     await this.removeWorktree(record);
     await git(record.repositoryPath, ['branch', '-D', record.branch]).catch(() => undefined);
     await this.forget(record.sessionId);
+  }
+
+  async saveOutcome(record: ScaffoldRecord, outcome: ScaffoldOutcome): Promise<ScaffoldRecord> {
+    const next = { ...record, outcome };
+    await writeFile(this.recordPath(record.sessionId), JSON.stringify(next, null, 2), { mode: 0o600 });
+    return next;
   }
 
   /** The project's live scaffold, if any. One scaffold per project is the invariant. */
