@@ -1,121 +1,125 @@
 # Codeville product requirements
 
-Status: Build Week demo implemented and verified  
-Owner: entrant  
-Track: Developer Tools  
-Submission deadline: July 21, 2026 at 5:00 PM PT
+Status: five-project Build Week demo implemented and verified
 
-The interactive implementation control plan, diagrams, contracts, file map, and original definition of done live in [`plans/hackathon-control/plan.mdx`](../plans/hackathon-control/plan.mdx). This document is the stable product specification.
+Track: Developer Tools
+
+Deadline: July 21, 2026 at 5:00 PM PT
+
+The approved architecture and visual specification is [`plans/multi-project-village/plan.mdx`](../plans/multi-project-village/plan.mdx).
 
 ## Product thesis
 
-Agentic coding tools expose progress primarily through logs, tool calls, diffs, and chat. That interface is useful for inspection but costly for ambient supervision and emotionally flat over repeated sessions. Codeville makes real agent progress understandable at a glance by projecting safe execution states into a persistent spatial world.
+Agentic coding tools expose work through logs, diffs, and chat. Those interfaces are essential for inspection but expensive for supervising several agents at once. Codeville projects safe execution state into a persistent spatial world: five repositories become five workshops, live Codex sessions become builders, and verified outcomes become lasting upgrades and readable debriefs.
 
-Codeville is a local-first desktop companion: a repository becomes a workshop, a Codex session becomes its builder, and successful improvements permanently grow the place.
-
-## Audience and job
-
-Primary user: a developer who delegates bounded repository improvements to Codex and wants to understand whether the agent is planning, inspecting, changing, testing, blocked, or done without continuously reading a terminal.
-
-Core job: “While Codex works in my project, help me understand its state and outcomes at a glance without revealing my code or weakening execution controls.”
+Core job: “While several Codex agents work, show me which project is planning, changing, blocked, testing, or done—and what each agent recommends next—without leaking implementation detail or weakening approvals.”
 
 ## Goals
 
-1. Truthfully visualize one real Codex task from start to completion.
-2. Make the experience coherent and delightful enough to feel like a product, not protocol telemetry.
-3. Preserve the user's existing Codex sandbox and approval authority.
-4. Prevent sensitive implementation detail from entering the visual event stream.
-5. Reward verified completion with per-project progression that survives relaunch.
-6. Give judges a repeatable, no-setup fixture that proves the whole loop.
+1. Keep exactly five projects simultaneously visible with stable spatial identity.
+2. Run independent real `gpt-5.6-sol` Codex threads concurrently through one local app-server.
+3. Make activity smooth and truthful: no canned phases, canvas replacement, spawn resets, or frantic event thrash.
+4. Show a safe completion bubble with what landed and whether follow-up is recommended.
+5. Preserve project-scoped sandbox, interrupt, approval, error, and persistence boundaries.
+6. Provide a one-click five-repository demo and automated source/packaged proof.
 
-## Non-goals for the Build Week release
+## Non-goals
 
-- Multiplayer, accounts, cloud sync, remote control, or hosted telemetry.
-- Replacing the Codex app, terminal, diffs, approvals, or debugging tools.
-- Full simulation/economy mechanics or user-generated village content.
-- Windows/Linux distribution, auto-update, App Store release, signing, or notarization.
-- Inferring progress from timers or fabricating activity when Codex is unavailable.
+- Accounts, hosted orchestration, remote control, telemetry, cloud sync, or multiplayer.
+- Replacing Codex chat, diff review, logs, approvals, or debugging tools.
+- More than five lots, a simulation economy, or user-generated world content.
+- Windows/Linux distribution, signing, notarization, auto-update, or App Store release.
+- Rendering raw final answers or inferring work from timers.
 
 ## Primary experience
 
-1. User opens Codeville and sees whether Codex and `gpt-5.6-sol` are available.
-2. User chooses a local folder or provisions the bundled **Acorn Tasks** demo.
-3. User reviews/edits one task and starts building.
-4. Codeville starts a local Codex thread and turn under `workspace-write` with `on-request` approvals.
-5. Real protocol messages become a safe timeline and corresponding builder animation.
-6. Any approval request pauses the experience and presents exact local details for a user decision.
-7. A successful turn upgrades the workshop; failure/interruption does not.
-8. Relaunching and choosing the same project restores its progression.
+1. Codeville detects Codex and restores five persisted lots.
+2. The user assigns repositories individually or provisions five disposable demo repositories in one click.
+3. All workshops stay visible; selecting a card changes only the Foreman's Desk.
+4. A real project can start individually. The disposable demo can start all five builders together.
+5. Thread-scoped app-server messages update only their owning project and actor.
+6. Approval requests enter a deterministic local queue and retain project identity.
+7. Each completion is sanitized into **Landed** plus **Follow-up**, upgrades only that workshop, and persists.
+8. Relaunch restores lot positions, levels, completion state, and safe debriefs.
 
 ## Functional requirements
 
 | ID | Requirement | Acceptance proof |
 | --- | --- | --- |
-| F1 | Detect the locally installed Codex CLI from terminal and common GUI-launch locations. | Header shows version in source and packaged builds; resolver unit tests pass. |
-| F2 | Let the user choose a local folder through a native dialog. | Selection returns only after an accessible directory is chosen. |
-| F3 | Provision a deterministic, disposable demo without repository setup. | One click copies and initializes the four-test fixture under app data. |
-| F4 | Start a real Codex app-server thread/turn with `gpt-5.6-sol`. | End-to-end test produces a real source edit and passing tests. |
-| F5 | Represent planning, reading, editing, command, test, approval, failure, interruption, and completion states. | Translator and state-machine tests cover mappings and transitions. |
-| F6 | Never emit raw prompts, code, diffs, paths, command strings, or output as `VillageEvent`. | Privacy translator tests and closed event union. |
-| F7 | Preserve explicit local approval decisions. | Approval dialog supports accept, session accept, decline, and cancel. |
-| F8 | Allow the active turn to be interrupted. | Interrupt request maps to a recoverable neutral state without progression. |
-| F9 | Record one progression increment only after successful completion. | Atomic store and reducer tests; E2E reads level 1. |
-| F10 | Restore progression after full process relaunch. | Source and packaged E2E close/relaunch and assert one completed session. |
-| F11 | Provide a visible reset for local village progression. | Reset action clears the versioned store and UI. |
-| F12 | Package an Apple-silicon macOS app with bundled demo and branded icon. | `pnpm package:mac` plus `pnpm test:packaged`. |
+| F1 | Detect the installed Codex CLI and show version/model readiness. | Resolver tests; source and packaged headers. |
+| F2 | Maintain five fixed lot slots with opaque project IDs. | v2 schema tests; relaunch E2E. |
+| F3 | Provision five isolated fixture repositories in one click. | E2E validates five directories and Git repositories. |
+| F4 | Multiplex five real `gpt-5.6-sol` threads over one app-server. | Five-project source and packaged gates. |
+| F5 | Route every event, interrupt, and approval by project. | Thread/project registries and concurrent E2E isolation. |
+| F6 | Represent planning, reading, editing, testing, approval, failure, interruption, and completion. | Translator/state tests and visible timelines. |
+| F7 | Emit only coarse events and validated debriefs to the renderer. | Closed types plus malicious debrief tests. |
+| F8 | Show what landed and follow-up status in a builder bubble and accessible panel. | Five completion bubbles and DOM debrief assertions. |
+| F9 | Keep one Pixi canvas alive after mount. | Canvas identity survives all five sessions. |
+| F10 | Smooth independent actor movement with phase dedupe/dwell/coalescing. | Pure queue tests and delta-time spring controller. |
+| F11 | Increment only the successfully completed project. | Store tests and five isolated level assertions. |
+| F12 | Migrate v1 path-keyed progress without loss. | Migration test produces opaque ID and preserves level/count. |
+| F13 | Package an Apple-silicon app with the demo fixture. | `package:mac` and five-project packaged E2E. |
 
-## Non-functional requirements
+## Privacy-safe debrief contract
 
-- **Truthfulness:** no phase or completion animation may be driven by a fake timer.
-- **Privacy:** raw Codex messages terminate in the privileged process; renderer IPC is typed and narrow.
-- **Security:** renderer sandbox, context isolation, no Node integration, workspace-write sandbox, on-request approvals.
-- **Reliability:** malformed/unknown notifications are ignored or mapped conservatively; progression writes are atomic and versioned.
-- **Reproducibility:** exact Node, pnpm, dependency, generated protocol, fixture, and test versions are committed.
-- **Performance:** animation remains responsive while app-server work is active; renderer does not process command output.
-- **Accessibility:** critical state exists as text, not animation/color alone; controls have semantic labels and focusable native elements.
-- **Distribution:** judge test path does not require rebuilding; source path remains documented.
+```ts
+interface CompletionDebrief {
+  landed: string;                // validated plain language, ≤96 chars
+  followUp: string;              // validated plain language, ≤96 chars
+  followUpRecommended: boolean;
+}
 
-## Data model
+interface ProjectVillageEvent {
+  projectId: string;             // opaque local UUID
+  event: VillageEvent;
+}
+```
 
-The only durable Codeville-owned data is local progression:
+Codex receives a developer instruction to append a `CODEVILLE_DEBRIEF` JSON marker. The privileged process privately retains the latest completed agent message per active thread, parses only the marker at terminal completion, sanitizes it, emits/persists the safe object, and immediately discards the raw text. Missing, contradictory, malformed, path-like, URL-like, code-shaped, or secret-shaped content is normalized or replaced with a generic fallback.
+
+## Persistence
 
 ```ts
 interface ProgressionData {
-  version: 1;
+  version: 2;
+  lots: [VillageLot, VillageLot, VillageLot, VillageLot, VillageLot];
   projects: Record<string, {
+    projectId: string;
     level: number;
     completedSessions: number;
     lastCompletedAt: string | null;
+    lastDebrief: CompletionDebrief | null;
   }>;
 }
 ```
 
-No application analytics or telemetry are collected in this release. Codex service communication remains under the signed-in user's normal OpenAI/Codex settings.
+The local atomic store uses mode `0600`. It persists repository name/path only for restoring the local village. It does not persist tasks, commands, diffs, outputs, or raw final messages.
+
+## Motion model
+
+- One `Application` and `VillageScene` mount for the renderer lifetime.
+- Five `BuilderActor` instances own independent displayed phases, queues, velocity, and targets.
+- Duplicate events are ignored; active phases dwell at least 650 ms.
+- When queues grow, stale planning/reading phases coalesce while editing, testing, approval, and terminal outcomes remain.
+- Movement uses delta-time critically damped springs; actors never reset to spawn on a phase change.
+- Completion persists until another task starts or progression is reset.
 
 ## Success criteria
 
-Build Week release success requires all of the following:
+- Five real Codex repairs can run concurrently and finish in isolated repositories.
+- Every fixture passes all four tests, every project reaches level 1, and every safe debrief is routed correctly.
+- Canvas identity remains unchanged across all project events.
+- Relaunch restores five lots and their safe outcomes.
+- Typecheck, lint, 26 tests, build, two-project source E2E, five-project source E2E, package, and five-project packaged E2E pass.
+- Submission includes an installable test build, public sub-three-minute narrated YouTube demo, repository, `/feedback` session ID, English description/testing instructions, and required disclosures.
 
-- A first-time judge can reach a real completed task from launch in three clicks after prerequisites.
-- The bundled task changes the fixture and passes all four tests.
-- The UI visibly follows real reading/editing/testing/completion events.
-- A relaunch shows the same workshop level.
-- No sensitive string crosses the safe event contract.
-- Unit, type, lint, production build, source E2E, package build, and packaged E2E pass.
-- Submission includes a working artifact, public sub-three-minute narrated video, repository/evidence, `/feedback` session ID, description, and testing instructions.
-
-## Product risks and mitigations
+## Risks and mitigations
 
 | Risk | Mitigation |
 | --- | --- |
-| Judge lacks Codex/model entitlement | State prerequisite prominently; detect Codex before enabling the path; video proves the live run. |
-| Model/network latency harms demo | Tiny deterministic fixture, no dependency install, generous test timeout, edited video may compress wait while preserving truthful sequence. |
-| GUI launch cannot find CLI | Search explicit override, inherited `PATH`, user bin directories, Homebrew paths. |
-| Raw code leaks into visuals | Closed coarse event union, pure translator, privacy tests, no renderer access to raw app-server stream. |
-| Success claimed without verification | Progress only on successful turn completion; acceptance test independently reruns fixture tests. |
-| Unsigned build triggers Gatekeeper | Document Control-click launch; sign/notarize if entrant supplies Developer ID credentials. |
-| Name conflicts after hackathon | Treat Codeville as the working entry name; perform formal clearance before commercialization. |
-
-## Future direction
-
-The next product step is not more decorative simulation. It is multi-project supervision: multiple workshops, each representing a project or agent, with spatial state, safe summaries, intervention points, and durable outcomes. Accounts, remote relays, and multiplayer should be considered only after the same privacy vocabulary is proven at that boundary.
+| Judge lacks model access | Detect readiness, document prerequisite, and show real run in video. |
+| Five sessions increase model latency | Tiny independent fixture; individual start remains available. |
+| Interleaved notifications cross projects | Register thread ownership before turns and envelope every renderer event. |
+| Bursty events make actors snap | Persistent scene, per-actor queues, dwell/coalescing, delta-time springs. |
+| Final prose leaks private data | Marker-only parser, deny-list sanitizer, bounds, generic fallback, raw-text disposal. |
+| Unsigned app triggers Gatekeeper | Document Control-click launch and provide source; sign if credentials become available. |

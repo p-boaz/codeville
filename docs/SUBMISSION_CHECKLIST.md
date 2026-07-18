@@ -20,7 +20,8 @@ Source of truth: [challenge overview](https://openai.devpost.com/), [FAQ](https:
 - [x] Privacy, sandbox, and approval behavior documented.
 - [x] Automated unit, production-build, and real-session acceptance proof.
 - [x] Persistent progression verified across app relaunch.
-- [ ] Produce final unsigned macOS `.app` archive and upload it to a stable, no-login release URL or Devpost attachment.
+- [x] Produce final unsigned macOS `.app` archive with recorded SHA-256.
+- [ ] Upload the archive to a stable, no-login release URL or Devpost attachment.
 - [ ] Test the downloaded archive on a clean Apple-silicon macOS account before submission.
 - [ ] Keep the working build available free of charge and unrestricted through the end of the official judging period.
 
@@ -30,6 +31,7 @@ Source of truth: [challenge overview](https://openai.devpost.com/), [FAQ](https:
 - [x] Relevant MIT license included.
 - [x] Pre-existing code, generated bindings, dependencies, and third-party work disclosed.
 - [x] Timestamped Build Week evidence included.
+- [x] Five-project screenshot included at `docs/screenshots/codeville-five-projects.png`.
 - [x] No secrets, local session logs, user data, build products, or private paths committed.
 - [ ] Choose publication mode:
   - [ ] **Public repository:** publish with MIT license and verify logged-out access; or
@@ -51,10 +53,12 @@ Source of truth: [challenge overview](https://openai.devpost.com/), [FAQ](https:
 ## Devpost form
 
 - [x] Project name, tagline, track, description, build story, testing path, and human decisions drafted.
+- [x] All repository submission material is in English.
 - [ ] Add repository URL.
 - [ ] Add packaged test-build URL/attachment and concise testing instructions.
 - [ ] Add public YouTube URL.
-- [ ] Add screenshots with no private data; include upgraded village and live-work state.
+- [x] Produce a five-project upgraded-village screenshot with no private data.
+- [ ] Upload final screenshots to Devpost and verify their crop/order.
 - [ ] Run `/feedback` in primary build thread `019f7398-bb25-74f2-9630-49f64427b392`.
 - [ ] Paste the exact `/feedback` Codex Session ID into Devpost.
 - [ ] Disclose all team members, open-source dependencies, generated bindings, and any other third-party material.
@@ -63,10 +67,10 @@ Source of truth: [challenge overview](https://openai.devpost.com/), [FAQ](https:
 
 ## Quality against judging criteria
 
-- [x] **Technological implementation:** real app-server protocol, GPT-5.6 execution, safe event translation, approvals, persistence, unit and acceptance tests.
-- [x] **Design:** coherent native experience, procedural world, understandable phases, completion state, judge-ready fixture.
-- [x] **Potential impact:** makes agent work legible without requiring constant log reading or leaking private implementation detail.
-- [x] **Idea quality:** agent activity becomes an evolving spatial world rather than another terminal/dashboard wrapper.
+- [x] **Technological implementation:** one real app-server multiplexes five GPT-5.6 threads with scoped events/approvals, sanitized debriefs, migration, persistence, and real packaged proof.
+- [x] **Design:** coherent native five-workshop experience, stable spatial memory, smooth persistent scene, accessible outcomes, judge-ready fixture.
+- [x] **Potential impact:** makes parallel agent work legible without constant log reading or private implementation exposure.
+- [x] **Idea quality:** concurrent agent activity becomes a persistent spatial world with outcomes rather than another terminal/dashboard wrapper.
 
 ## Final risk checks
 

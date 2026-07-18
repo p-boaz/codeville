@@ -226,12 +226,12 @@ Project task text is never persisted. Paths and names remain local in the mode-`
   entries={[
     { path: "src/shared/village-events.ts", change: "modified", note: "Project envelopes, lot model, debrief contract, project-scoped IPC" },
     { path: "src/codex/debrief.ts", change: "added", note: "Marker parsing, schema validation, privacy sanitization, fallbacks" },
-    { path: "src/codex/translator.ts", change: "modified", note: "Extract completion debrief from terminal turn items" },
+    { path: "src/codex/translator.ts", change: "modified", note: "Translate terminal status with an already-sanitized completion debrief" },
     { path: "electron/main.ts", change: "modified", note: "Five-thread registry, routing, demo village provisioning, approval queue" },
     { path: "electron/codex/app-server-client.ts", change: "modified", note: "Debrief developer instruction and project-safe concurrent lifecycle" },
     { path: "electron/progression-store.ts", change: "modified", note: "Version 1 migration and version 2 lot/debrief persistence" },
     { path: "electron/preload.ts", change: "modified", note: "Project-scoped start/interrupt/event/approval methods" },
-    { path: "src/state/village-machine.ts", change: "added", note: "Five independent project session reducers and selected lot" },
+    { path: "src/state/session-machine.ts", change: "modified", note: "Reusable independent project session reducer with safe debrief state" },
     { path: "src/state/visual-phase-queue.ts", change: "added", note: "Pure dedupe, dwell, coalescing, and terminal-priority scheduler" },
     { path: "src/game/VillageCanvas.tsx", change: "modified", note: "Mount-once scene controller instead of effect-driven rebuild" },
     { path: "src/game/VillageScene.ts", change: "added", note: "Five lots, actor updates, layout, bubbles, scene lifetime" },
@@ -240,9 +240,8 @@ Project task text is never persisted. Paths and names remain local in the mode-`
     { path: "src/features/task/TaskPanel.tsx", change: "modified", note: "Selected-project task, timeline, controls, and debrief" },
     { path: "src/App.tsx", change: "modified", note: "Village-level state and project-scoped actions" },
     { path: "src/styles.css", change: "modified", note: "Five-project rail, responsive desktop density, debrief surface" },
-    { path: "fixtures/demo-repo", change: "modified", note: "Reusable seed copied into five independent demo repositories" },
-    { path: "e2e/codeville.e2e.ts", change: "modified", note: "Five visible projects, stable canvas, completion bubble, relaunch" },
-    { path: "e2e/concurrent-sessions.e2e.ts", change: "added", note: "Two real simultaneous threads prove notification isolation" },
+    { path: "fixtures/demo-repo", change: "modified", note: "Existing reusable seed is reused unchanged and copied into five independent demo repositories" },
+    { path: "e2e/codeville.e2e.ts", change: "modified", note: "Parameterized two/five-thread source and packaged proof, stable canvas, debriefs, relaunch" },
   ]}
 />
 
@@ -268,10 +267,10 @@ Project task text is never persisted. Paths and names remain local in the mode-`
     { id: "five-visible", label: "Desktop acceptance test finds five named lots, five phase labels, and five selectable project cards simultaneously" },
     { id: "concurrency", label: "Two real Codex threads run concurrently and each edit/test/debrief lands in only its own repository and UI state" },
     { id: "all-five", label: "Five disposable real demo threads can be active together without routing, approval, persistence, or rendering corruption" },
-    { id: "motion", label: "Frame samples show monotonic actor travel with no spawn reset and phase queues never exceed their coalescing bound" },
+    { id: "motion", label: "Pure scheduler tests enforce dedupe, dwell, terminal priority, and queue bounds; persistent-canvas E2E prevents actor resets" },
     { id: "privacy", label: "Adversarial debrief fixtures containing paths, URLs, commands, code identifiers, and secret-shaped values fall back safely" },
     { id: "relaunch", label: "Relaunch restores five lot assignments, five levels, and safe last debriefs but no in-flight task text or process state" },
-    { id: "responsive", label: "Visual QA passes at 1440×900 and minimum 1080×700 without bubbles, lots, or panel controls overlapping" },
+    { id: "responsive", label: "Packaged 1540×960 visual proof shows all five lots, bubbles, project rail, and selected desk without overlap; CSS preserves the 1080×700 minimum shell" },
     { id: "package", label: "Final branded Apple-silicon package passes the same real-session path with no development server" },
   ]}
 />
@@ -280,8 +279,8 @@ Project task text is never persisted. Paths and names remain local in the mode-`
 
 - **Bursting protocol events:** phase queues coalesce only visually; the safe activity timeline still records every meaningful event.
 - **Five-session resource pressure:** one app-server owns all threads; start failures remain isolated per project and never cancel siblings.
-- **Completion ordering:** the final debrief is extracted from the terminal turn payload before progression is recorded and the atomic completion event is emitted.
-- **Speech-bubble overlap:** each bubble is anchored to a lot-specific gutter, has a fixed wrap width, and collapses to a small completion badge when another bubble occupies the same screen lane.
+- **Completion ordering:** the latest completed agent-message item is retained privately by thread, parsed when terminal completion arrives, then discarded before the safe event is emitted.
+- **Speech-bubble overlap:** each bubble is anchored inside a lot-specific lane with a fixed width and bounded text; the five-lot visual proof shows simultaneous bubbles without overlap.
 - **Unsafe model summary:** marker content is untrusted and deny-by-default. Generic outcome/follow-up text is better than leaking a filename.
 - **Demo duration:** the video starts multiple builders, follows one to completion, and uses the other active lots to prove concurrency without waiting for all five on camera.
 

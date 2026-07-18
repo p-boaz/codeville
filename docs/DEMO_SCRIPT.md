@@ -1,49 +1,48 @@
 # Demo video script
 
-Target: 2:30–2:45, public YouTube, spoken audio throughout. Record at 1440×900 or 1920×1080. Keep the cursor deliberate and terminal text readable.
+Target: 2:35–2:50, public YouTube, clear spoken audio. Record at 1920×1080 with notifications hidden.
 
-## 0:00–0:20 — Problem and hook
+## 0:00–0:20 — Hook
 
-**Visual:** Open on the complete village, then reset to the sleeping workshop.
+**Visual:** Open on all five completed workshops and their speech bubbles.
 
-**Voice:** “Coding agents are powerful, but supervising them still feels like watching an anxious stream of logs. Codeville turns real Codex work into a calm, living village—without exposing the private code underneath.”
+**Voice:** “Coding agents can work in parallel, but supervising them still means scanning parallel walls of logs. Codeville turns five real Codex projects into one calm, living village—showing state and outcome without exposing the private code underneath.”
 
-## 0:20–0:40 — Real product, instant test path
+## 0:20–0:42 — One-click real setup
 
-**Visual:** Show `gpt-5.6-sol` and the Codex version in the header. Click **Use the judge-ready demo project**.
+**Visual:** Reset, show `gpt-5.6-sol` and Codex version, click **Create demo village**.
 
-**Voice:** “This is a native desktop developer tool connected to the real local Codex app-server. The bundled judge project has one missing implementation and four tests, so anyone can verify the full loop without setting up a repository.”
+**Voice:** “This native desktop developer tool connects to the installed Codex app-server. One click creates five isolated judge repositories, each with one missing implementation and four tests. Nothing here is a canned animation.”
 
-## 0:40–1:25 — Agent work becomes a world
+## 0:42–1:30 — Five live agents
 
-**Visual:** Click **Start building**. Follow the builder and activity timeline through reading, editing, command, tests.
+**Visual:** Click **Start all builders**. Move between project cards as their states diverge; show two or three builders in different stations. If an approval appears, show it briefly.
 
-**Voice:** “Codeville starts a real GPT-5.6 Codex thread. As Codex plans, reads, edits, and tests, its app-server events move the builder through the same phases. These animations are not timed or canned—they are driven by the live session. If Codex requests a sensitive command, Codeville pauses and shows an explicit local approval dialog.”
+**Voice:** “One app-server connection now runs five independent GPT-5.6 Codex threads. Every notification is routed back to its project. Planning, reading, editing, testing, and approvals drive independent builders in real time. The Pixi scene stays mounted, while per-builder queues and spring motion turn bursty protocol events into smooth, truthful choreography.”
 
-## 1:25–1:50 — Completion and persistence
+## 1:30–1:58 — Outcomes, not logs
 
-**Visual:** Show **All checks passed**, **Improvement complete**, and Workshop level 1. Quit, reopen, choose the demo, show level 1 remains.
+**Visual:** Let all five complete. Select two projects and show their bubble and matching Foreman's Desk debrief.
 
-**Voice:** “GPT-5.6 implements the function and passes all four tests. Completion upgrades the workshop, and that progress survives a full app relaunch. Each repository grows its own persistent place.”
+**Voice:** “Each agent finishes by saying what landed and whether it recommends follow-up. Codeville treats that final prose as untrusted: only a short validated object reaches the renderer. Paths, URLs, code syntax, identifiers, and secret-shaped text are rejected. All five fixture test suites pass independently.”
 
-## 1:50–2:15 — Technical and privacy depth
+## 1:58–2:18 — Persistence
 
-**Visual:** Briefly show the README architecture diagram and `VillageEvent` type, then return to the app.
+**Visual:** Quit and reopen; select Acorn Tasks and show level 1 plus its debrief.
 
-**Voice:** “The key technical boundary is a strict translator. The village receives only safe states like reading, editing, testing, and complete. Prompts, source code, diffs, paths, command strings, and output never enter the visual event stream. Electron context isolation, a narrow preload API, workspace-write sandboxing, and on-request approvals reinforce that boundary.”
+**Voice:** “The five spatial identities, upgrades, and safe debriefs survive a full relaunch. Progress belongs to each project; one failure or approval never freezes the rest of town.”
 
-## 2:15–2:40 — Codex build story and impact
+## 2:18–2:43 — Build story and impact
 
-**Visual:** Show the evidence file/commit history, then end on the upgraded village.
+**Visual:** Briefly show README architecture and the evidence commands, then return to the full village.
 
-**Voice:** “Codex with GPT-5.6 also built Codeville: the architecture, protocol bindings, procedural PixiJS world, tests, packaging, and submission proof all came from the primary build thread. The human choices were the product boundaries—local-first, private, persistent, and focused. Codeville points toward a spatial command center where people understand many agents by state and outcome, not by reading every log.”
+**Voice:** “Codex with GPT-5.6 also built Codeville: architecture, protocol bindings, concurrent routing, procedural Pixi world, privacy tests, migration, packaging, and real five-thread acceptance proof. The human decisions were the boundaries—local-first, private, spatial, and outcome-focused. Codeville makes multi-agent work legible at a glance.”
 
 ## Recording checklist
 
-- Keep final video under 3:00.
-- Include spoken mention of both **Codex** and **GPT-5.6**.
-- Show the app working, not only slides or code.
-- Avoid notifications, private paths, unrelated tabs, third-party logos, music, or copyrighted media.
-- Use only Codeville's procedural visuals and the repository documentation.
-- Upload as **Public** on YouTube, not Unlisted.
-- Verify audio, 1080p playback, and link in a logged-out browser.
+- Under 3:00; judges need not watch beyond three minutes.
+- Publicly visible on YouTube, with clear audio/voiceover.
+- Explicitly say **Codex** and **GPT-5.6**, and show how both were used.
+- Show five live projects, completion debriefs, and relaunch—not only code or slides.
+- No private paths, notifications, third-party marks, copyrighted music, or unlicensed media.
+- Verify 1080p, audio, captions, duration, and logged-out playback.

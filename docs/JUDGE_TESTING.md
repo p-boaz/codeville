@@ -1,43 +1,36 @@
 # Judge testing guide
 
-## Fast path: provided macOS test build
+## Fast path: provided macOS build
 
-Prerequisites:
+Prerequisites: Apple-silicon Mac, authenticated Codex CLI with `gpt-5.6-sol` access, and internet connectivity for Codex.
 
-- Apple-silicon Mac
-- authenticated Codex CLI with `gpt-5.6-sol` access
-- internet connection for the Codex session
+1. Download and unzip `Codeville-0.1.0-mac-arm64.zip`.
+2. Open `Codeville.app`. The hackathon build is unsigned, so first launch may require **Control-click → Open → Open**.
+3. Confirm the header shows `gpt-5.6-sol` and a Codex CLI version.
+4. Click **Create demo village**. Five named workshops appear: Acorn Tasks, Lantern API, Mossy Docs, Pine Tests, and Willow UI.
+5. Click **Start all builders**. Five real Codex threads repair five isolated repositories simultaneously. A typical verified run took 44–46 seconds; model load can vary.
+6. Confirm all five project cards say **Complete**. Each workshop shows a dialogue bubble with **Landed** and follow-up status; selecting any project shows the same readable debrief and safe activity timeline.
+7. Quit and reopen Codeville. Confirm all five workshops remain and select Acorn Tasks to verify level 1 and its debrief persisted.
 
-Steps:
+To run a smaller proof, select one project and click **Start building** instead. The demo repositories live under Codeville's app-data directory and never touch a judge's own projects.
 
-1. Download and unzip the attached Codeville macOS test build.
-2. Open `Codeville.app`. Because this hackathon build is unsigned, macOS may require **Control-click → Open → Open** on first launch.
-3. Confirm the header shows `gpt-5.6-sol` and a Codex CLI version. If it says **Codex unavailable**, install/sign in to Codex and reopen the app.
-4. Click **Use the judge-ready demo project**.
-5. Click **Start building** and wait for **Improvement complete**. A typical run is under two minutes, but network/model load can vary.
-6. Verify Workshop level is 1 and the activity timeline reports that all checks passed.
-7. Quit and reopen the app, click **Use the judge-ready demo project**, and verify Workshop level is still 1.
-
-The bundled demo is reset before each run, so it is safe to repeat. Its files live under Codeville's app-data directory, not in one of the judge's repositories.
-
-## Source path
+## Source verification
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm dev
-```
-
-The automated acceptance proof is:
-
-```sh
+pnpm check
 pnpm test:e2e
+CODEVILLE_E2E_PROJECT_COUNT=5 pnpm test:e2e
+pnpm package:mac
+CODEVILLE_E2E_PROJECT_COUNT=5 pnpm test:packaged
 ```
 
-It launches Electron, provisions the bundled fixture, runs a real GPT-5.6 Codex task, verifies the source edit and four passing fixture tests, closes and relaunches Electron, and confirms the persisted upgrade.
+The five-project acceptance gate launches Electron, provisions five repositories, starts five real GPT-5.6 Codex threads through one app-server, verifies every source edit and all four tests per repository, proves the Pixi canvas was never replaced, validates five isolated progression records, closes and relaunches Electron, and verifies persisted debriefs.
 
 ## Troubleshooting
 
-- **Codex unavailable:** run `codex --version` and `codex login` in Terminal, then reopen Codeville.
-- **Model access error:** verify the signed-in Codex account can start a `gpt-5.6-sol` session.
-- **Unsigned app warning:** use Control-click → Open; the source path remains available for complete inspection.
-- **Task interrupted:** click **New task** and rerun the bundled demo. The fixture is disposable.
+- **Codex unavailable:** run `codex --version` and sign in to Codex, then reopen Codeville.
+- **Model access error:** verify the account can start a `gpt-5.6-sol` Codex session.
+- **Unsigned app warning:** use Control-click → Open. The complete source path remains available.
+- **One builder pauses:** select its project card to see the exact error or approval request. Other projects continue independently.
+- **Repeat the demo:** **Reset demo village** clears Codeville progression; **Create demo village** provisions fresh fixture copies.

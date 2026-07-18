@@ -1,21 +1,22 @@
 # Codeville
 
-Codeville turns real Codex activity into a calm, persistent coding village. Pick a local repository, describe an improvement, and watch a tiny builder plan, inspect, edit, and test while the actual Codex session runs. A completed task upgrades that project's workshop permanently.
+Codeville is a living desktop command center for Codex. Five local repositories become five workshops, each with its own real builder, activity state, approval boundary, progression, and completion debrief. You can understand what several agents are doing—and where they landed—without reading five log streams or exposing private code to the visual layer.
 
 This is a Developer Tools entry for OpenAI Build Week 2026.
 
 ## Judge-ready demo
 
-The fastest path does not require rebuilding Codeville or preparing a repository:
+The fastest path requires no repository setup or rebuild:
 
 1. Install and sign in to the [Codex CLI](https://developers.openai.com/codex/cli/).
-2. Open the provided macOS `Codeville.app` test build.
+2. Open the provided Apple-silicon macOS `Codeville.app` test build.
 3. Confirm the header shows `gpt-5.6-sol` and a Codex version.
-4. Click **Use the judge-ready demo project**.
-5. Click **Start building**. The included four-test fixture is copied to an isolated app-data directory; Codex implements its missing function and runs the tests.
-6. Wait for **Improvement complete** and Workshop level 1. Close and reopen Codeville, choose the demo again, and the upgrade remains.
+4. Click **Create demo village**. Codeville creates five isolated copies of the bundled four-test fixture.
+5. Click **Start all builders** to launch five real Codex threads, or select one workshop and click **Start building**.
+6. Watch every builder independently plan, read, edit, test, and complete. Each completion produces a safe speech bubble explaining what landed and whether follow-up is recommended.
+7. Quit and reopen Codeville. The five lots, workshop levels, and safe debriefs remain.
 
-The demo edits only the disposable fixture. Choosing a real project is optional.
+The demo modifies only disposable repositories under Codeville's app-data directory. Choosing a real repository is optional.
 
 ## Supported platform
 
@@ -23,7 +24,7 @@ The demo edits only the disposable fixture. Choosing a real project is optional.
 - Development: validated on macOS with Node 24.16.0 and pnpm 10.33.4.
 - Windows and Linux are not validated for this hackathon build.
 
-Codeville locates Codex from `PATH`, common Homebrew/user install locations, or the optional `CODEVILLE_CODEX_BINARY` environment variable. It requires an authenticated Codex CLI account with access to `gpt-5.6-sol`.
+Codeville locates Codex from `PATH`, common Homebrew/user install locations, or `CODEVILLE_CODEX_BINARY`. It requires an authenticated Codex CLI account with access to `gpt-5.6-sol`.
 
 ## Run from source
 
@@ -32,66 +33,66 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Quality and packaging commands:
+Verification and packaging:
 
 ```sh
-pnpm check       # typecheck, lint, unit tests, production build
-pnpm test:e2e    # real Codex session, real file edit/tests, persistence relaunch
-pnpm package:mac # unsigned Codeville.app under release/mac-arm64/
-pnpm test:packaged # repeat the real-session proof against that packaged app
+pnpm check                                   # typecheck, lint, 26 tests, production build
+pnpm test:e2e                                # two concurrent real Codex projects by default
+CODEVILLE_E2E_PROJECT_COUNT=5 pnpm test:e2e # five-project release gate
+pnpm package:mac                             # unsigned release/mac-arm64/Codeville.app
+CODEVILLE_E2E_PROJECT_COUNT=5 pnpm test:packaged
 ```
 
-`pnpm test:e2e` consumes a real Codex session and can take several minutes. It creates only temporary app data and a temporary copy of `fixtures/demo-repo`.
+The real-session tests consume Codex usage. They create temporary app data and isolated copies of `fixtures/demo-repo`.
 
-## How it works
+## Architecture
 
 ```text
-Electron renderer (React + PixiJS)
-          │ narrow, typed IPC
-          ▼
-Electron main process ── JSONL over local stdio ── Codex app-server
-          │
-          ├── privacy translator ──> safe VillageEvent vocabulary
-          ├── local approval bridge ──> exact command shown only to the user
-          └── atomic progression store ──> per-project workshop level
+React project rail + selected desk ── one long-lived PixiJS village
+                 │ narrow, typed project envelopes
+                 ▼
+Electron main process ── one JSONL stdio connection ── Codex app-server
+       │                         ├── thread 1 → project 1
+       │                         ├── thread 2 → project 2
+       │                         └── ... up to five live threads
+       ├── thread/project registry + deterministic approval queue
+       ├── privacy translator + completion debrief sanitizer
+       └── atomic v2 store: five lots, levels, safe debriefs
 ```
 
-The Electron main process starts the installed Codex app-server with `workspace-write` sandboxing and `on-request` approvals. App-server messages pass through a strict translator before reaching the village. The renderer receives only coarse events such as `reading`, `editing`, `running_command: test`, and `tests_passed`; it never receives prompts, code, diffs, command output, or filesystem paths through that channel. Exact commands and working directories appear only in the local approval dialog when Codex explicitly requests approval.
+One initialized app-server connection multiplexes all project threads. Every renderer event carries an app-owned opaque `projectId`, so interleaved notifications and approval requests remain attached to the correct workshop. Each builder owns its own visual phase queue and spring motion. PixiJS mounts once; project updates never replace the canvas or reset actors.
 
-Progression is stored as a small versioned JSON file in Electron's user-data directory and written atomically. Project code remains in the selected repository and Codex's normal local execution boundary.
+The renderer receives only coarse activity events and validated `CompletionDebrief` objects. It never receives prompts, code, diffs, command output, or raw final messages through the village channel. Debrief strings are length-bounded and reject paths, URLs, emails, shell/code syntax, identifiers, and common secret shapes. Exact commands and working directories appear only in the local approval dialog when a user decision is required.
 
-See [docs/PRIVACY.md](docs/PRIVACY.md) for the complete data boundary and [docs/JUDGE_TESTING.md](docs/JUDGE_TESTING.md) for the short verification path.
-
-The complete product requirements are in [docs/PRD.md](docs/PRD.md); the original interactive implementation plan is in [plans/hackathon-control/plan.mdx](plans/hackathon-control/plan.mdx).
+See [privacy](docs/PRIVACY.md), [judge testing](docs/JUDGE_TESTING.md), and the full [PRD](docs/PRD.md). The approved multi-project implementation plan is in [plans/multi-project-village](plans/multi-project-village/plan.mdx).
 
 ## Codex and GPT-5.6
 
 Codex and GPT-5.6 are part of both the product and its creation:
 
-- **Product runtime:** every animation is driven by a real Codex app-server notification. Each Codeville task starts a real `gpt-5.6-sol` thread in the selected local repository.
-- **Build acceleration:** Codex produced the architecture, implementation, generated app-server protocol bindings, procedural village, tests, packaging, and submission documentation in the primary build thread.
-- **Live verification:** the end-to-end test makes GPT-5.6 repair a deliberately incomplete JavaScript fixture, runs its four real tests, verifies the changed file, and relaunches the desktop app to prove persistence.
+- **Runtime:** each workshop starts a real `gpt-5.6-sol` Codex thread. Five projects can run simultaneously through the installed app-server.
+- **Build:** Codex produced the architecture, protocol integration, Electron/React/PixiJS implementation, privacy contracts, migration, tests, packaging, and submission documentation in the primary thread.
+- **Proof:** the acceptance harness makes up to five GPT-5.6 agents independently repair five repositories, reruns every fixture test, verifies routed debriefs and an unchanged canvas, then relaunches the app to prove persistence.
 
 Primary build session ID: `019f7398-bb25-74f2-9630-49f64427b392`.
 
-Human product decisions were deliberately retained: a desktop app instead of a browser mock; local stdio instead of the experimental WebSocket transport; a privacy-safe event vocabulary; persistent single-player progression; and a narrow, judgeable task instead of multiplayer or decorative scope.
+Human product decisions set the boundaries: native desktop instead of a browser mock; one local stdio transport instead of hosted orchestration; safe spatial state instead of raw logs; five simultaneously visible projects; and persistent outcome debriefs instead of transient completion confetti.
 
 ## Repository guide
 
-- `electron/` — secure desktop shell, Codex protocol client, generated protocol types, persistence
-- `src/codex/` — privacy-preserving app-server-to-village translation
-- `src/game/` — procedural PixiJS village renderer
-- `src/state/` — deterministic session and progression state
-- `fixtures/demo-repo/` — disposable four-test judge fixture
-- `e2e/` — real Codex desktop acceptance test
-- `docs/` — judge guide, evidence, submission copy, video script, and checklist
-- `plans/hackathon-control/` — original Build Week implementation control plan
+- `electron/` — secure shell, concurrent Codex routing, approval queue, protocol bindings, v2 persistence
+- `src/codex/` — privacy-safe event translation and completion debrief sanitizer
+- `src/game/` — persistent five-lot PixiJS scene and independent spring-driven actors
+- `src/state/` — deterministic session and visual phase reducers
+- `fixtures/demo-repo/` — disposable four-test fixture copied into five repositories
+- `e2e/` — real concurrent Codex acceptance and relaunch proof
+- `docs/` — PRD, judge guide, evidence, Devpost copy, video script, privacy, checklist
 
 ## Evidence and third-party work
 
-Codeville was created during the July 13–21, 2026 submission period. Timestamped commits, the primary Codex session, and repeatable verification commands are recorded in [docs/BUILD_WEEK_EVIDENCE.md](docs/BUILD_WEEK_EVIDENCE.md).
+Codeville was created during the July 13–21, 2026 submission period. Timestamped commits and repeatable proof are recorded in [Build Week evidence](docs/BUILD_WEEK_EVIDENCE.md).
 
-The application uses React, Electron, PixiJS, and standard open-source build/test tooling declared in `package.json`. All village art is procedurally drawn in code; the project contains no stock art, music, external fonts, or pre-existing application code.
+The application uses React, Electron, PixiJS, and standard open-source tooling declared in `package.json`. All village art is procedurally drawn in code; there is no stock art, music, external font, or pre-existing application code.
 
 ## License
 
