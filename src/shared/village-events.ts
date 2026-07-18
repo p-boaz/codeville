@@ -189,6 +189,12 @@ export interface SessionOutcome {
   followUpRecommended: boolean;
 }
 
+/** Another workshop's pending improvement on the same repository that shares files with this one. */
+export interface ScaffoldOverlap {
+  workshopName: string;
+  sharedFiles: number;
+}
+
 /** Safe scaffold summary: counts and branch only, no paths or code. */
 export interface PendingScaffoldView {
   projectId: string;
@@ -199,6 +205,7 @@ export interface PendingScaffoldView {
   insertions: number;
   deletions: number;
   outcome: SessionOutcome | null;
+  overlaps: ScaffoldOverlap[];
 }
 
 export interface SessionDiffFile {
@@ -218,6 +225,8 @@ export interface SessionDiffView {
   insertions: number;
   deletions: number;
   files: SessionDiffFile[];
+  /** Paths another pending workshop on this repository also changed. */
+  overlapPaths: string[];
 }
 
 export interface BatchLaunchProject {

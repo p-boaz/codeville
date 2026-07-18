@@ -333,3 +333,6 @@ button:disabled { cursor: not-allowed; opacity: 0.42; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+.overlap-warning { border: 1.5px solid rgba(224, 138, 112, 0.55); border-radius: 10px; background: rgba(224, 138, 112, 0.1); padding: 8px 10px; }
+.overlap-warning p { margin: 0; font-size: 10.5px; line-height: 1.5; color: #f0b7a4; }
+.overlap-warning strong { color: #ef9a83; }

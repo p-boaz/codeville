@@ -18,6 +18,7 @@ const scaffold = {
     deskFollowUp: 'No follow-up recommended.',
     followUpRecommended: false,
   },
+  overlaps: [{ workshopName: 'graphletter · 2', sharedFiles: 1 }],
 };
 
 describe('InspectionCard', () => {
@@ -28,6 +29,7 @@ describe('InspectionCard', () => {
     expect(screen.getByText('+14')).toBeVisible();
     expect(screen.getByLabelText('Verified session facts')).toHaveTextContent('tests passed · 6m 12s');
     expect(screen.getByText(/Implemented summarizeProject in src\/health\.js/)).toBeVisible();
+    expect(screen.getByLabelText('Overlapping pending improvement')).toHaveTextContent('graphletter · 2');
     expect(screen.getByRole('button', { name: /install in repository/i })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: /discard…/i }));
     expect(onDiscard).not.toHaveBeenCalled();
@@ -45,9 +47,10 @@ describe('InspectionCard', () => {
       insertions: 1,
       deletions: 1,
       files: [{ path: 'src/health.js', insertions: 1, deletions: 1, patch: '-old line\n+new line' }],
+      overlapPaths: ['src/health.js'],
     };
     render(<InspectionCard scaffold={scaffold} diff={diff} busy={false} error={null} onLoadDiff={vi.fn()} onCloseDiff={vi.fn()} onApply={vi.fn()} onKeep={vi.fn()} onDiscard={vi.fn()} onOpenScaffold={vi.fn()} />);
-    expect(screen.getByText('src/health.js')).toBeVisible();
+    expect(screen.getByText(/⚠ src\/health\.js/)).toBeVisible();
     expect(screen.getByText(/\+new line/)).toBeVisible();
   });
 });

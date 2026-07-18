@@ -203,6 +203,13 @@ export class ScaffoldManager {
     return next;
   }
 
+  /** Paths changed by BOTH scaffolds — the files where whichever lands second may conflict. */
+  async sharedChangedPaths(record: ScaffoldRecord, other: ScaffoldRecord): Promise<string[]> {
+    const [mine, theirs] = await Promise.all([this.diffStats(record), this.diffStats(other)]);
+    const ours = new Set(mine.changedPaths);
+    return theirs.changedPaths.filter((path) => ours.has(path));
+  }
+
   /** The project's live scaffold, if any. One scaffold per project is the invariant. */
   async forProject(projectId: string): Promise<ScaffoldRecord | null> {
     const records = await this.listOrphans(new Set());

@@ -145,6 +145,21 @@ describe('ScaffoldManager', () => {
     expect(Number(await git(repo, ['rev-list', '--count', 'HEAD']))).toBe(3);
   });
 
+  it('reports the exact paths two workshops both changed', async () => {
+    const repo = await makeRepo();
+    const manager = new ScaffoldManager(await mkdtemp(join(tmpdir(), 'codeville-scaffolds-')));
+    const first = await manager.create(repo, 'project-a', 'session-a');
+    const second = await manager.create(repo, 'project-b', 'session-b');
+    await writeFile(join(first.scaffoldPath, 'health.js'), 'module.exports = () => 2;\n');
+    await writeFile(join(first.scaffoldPath, 'only-a.js'), 'a\n');
+    await writeFile(join(second.scaffoldPath, 'health.js'), 'module.exports = () => 3;\n');
+    await writeFile(join(second.scaffoldPath, 'only-b.js'), 'b\n');
+    await manager.checkpoint(first);
+    await manager.checkpoint(second);
+    expect(await manager.sharedChangedPaths(first, second)).toEqual(['health.js']);
+    expect(await manager.sharedChangedPaths(second, first)).toEqual(['health.js']);
+  });
+
   it('refuses a repository with no commits with a plain-language error', async () => {
     const repo = await mkdtemp(join(tmpdir(), 'codeville-empty-'));
     await git(repo, ['-c', 'init.defaultBranch=main', 'init']);

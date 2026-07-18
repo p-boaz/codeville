@@ -199,6 +199,32 @@ async function requireScaffold(projectId: string): Promise<ScaffoldRecord> {
   return record;
 }
 
+/**
+ * Cross-workshop awareness: which OTHER sealed improvements on the same
+ * repository touch the same files. Whichever lands second may conflict, so the
+ * operator should land the overlapping one first or expect a kept branch.
+ */
+async function computeOverlaps(record: ScaffoldRecord): Promise<{ overlaps: { workshopName: string; sharedFiles: number }[]; overlapPaths: string[] }> {
+  const overlaps: { workshopName: string; sharedFiles: number }[] = [];
+  const overlapPaths = new Set<string>();
+  try {
+    const siblings = (await scaffolds.listOrphans(new Set())).filter((other) =>
+      other.repositoryPath === record.repositoryPath && other.sessionId !== record.sessionId && other.outcome,
+    );
+    if (siblings.length === 0) return { overlaps, overlapPaths: [] };
+    const data = await store.read();
+    for (const other of siblings) {
+      const shared = await scaffolds.sharedChangedPaths(record, other);
+      if (shared.length === 0) continue;
+      overlaps.push({ workshopName: data.projects[other.projectId]?.repositoryName ?? 'Another workshop', sharedFiles: shared.length });
+      for (const path of shared) overlapPaths.add(path);
+    }
+  } catch {
+    // Overlap awareness is advisory; never let it block inspection.
+  }
+  return { overlaps, overlapPaths: [...overlapPaths] };
+}
+
 /** Dock badge = decisions waiting on the operator: approvals, replies, uninspected improvements. */
 async function updateAttentionBadge(): Promise<void> {
   try {
@@ -503,6 +529,7 @@ function registerIpc(): void {
     await scaffolds.checkpoint(record);
     const stats = await scaffolds.diffStats(record);
     if (stats.filesChanged === 0) return null;
+    const { overlaps } = await computeOverlaps(record);
     return {
       projectId,
       branch: record.branch,
@@ -512,6 +539,7 @@ function registerIpc(): void {
       insertions: stats.insertions,
       deletions: stats.deletions,
       outcome: record.outcome ?? null,
+      overlaps,
     };
   });
   ipcMain.handle('wall:set', (_event, on: boolean) => { wallModeActive = Boolean(on); });
@@ -522,6 +550,7 @@ function registerIpc(): void {
     if (!record) return null;
     await scaffolds.checkpoint(record);
     const [stats, files] = [await scaffolds.diffStats(record), await scaffolds.diff(record)];
+    const { overlapPaths } = await computeOverlaps(record);
     return {
       projectId,
       branch: record.branch,
@@ -531,6 +560,7 @@ function registerIpc(): void {
       insertions: stats.insertions,
       deletions: stats.deletions,
       files,
+      overlapPaths,
     };
   });
   ipcMain.handle('scaffold:apply', async (_event, projectId: string) => {

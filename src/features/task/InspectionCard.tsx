@@ -44,6 +44,16 @@ export function InspectionCard({ scaffold, diff, busy, error, onLoadDiff, onClos
       </div>
       <p className="inspection-base">On branch <code>{scaffold.branch}</code>, built from “{scaffold.baseSubject}”. Your checkout is untouched until you apply.</p>
 
+      {scaffold.overlaps.length > 0 && (
+        <div className="overlap-warning" role="note" aria-label="Overlapping pending improvement">
+          {scaffold.overlaps.map((overlap) => (
+            <p key={overlap.workshopName}>
+              ⚠ <strong>{overlap.workshopName}</strong> also has a pending improvement touching {overlap.sharedFiles} of the same file{overlap.sharedFiles === 1 ? '' : 's'}. Whichever lands second may conflict — its branch is kept either way.
+            </p>
+          ))}
+        </div>
+      )}
+
       {scaffold.outcome?.deskLanded && (
         <div className="desk-account" aria-label="Builder's verified account">
           <strong>Builder's account</strong>
@@ -57,7 +67,10 @@ export function InspectionCard({ scaffold, diff, busy, error, onLoadDiff, onClos
           <button className="text-button" onClick={onCloseDiff}>Hide diff</button>
           {diff.files.map((file) => (
             <details className="diff-file" key={file.path} open={diff.files.length <= 3}>
-              <summary><code>{file.path}</code><span><span className="diff-insertions">+{file.insertions}</span> <span className="diff-deletions">−{file.deletions}</span></span></summary>
+              <summary>
+                <code>{diff.overlapPaths.includes(file.path) ? '⚠ ' : ''}{file.path}</code>
+                <span><span className="diff-insertions">+{file.insertions}</span> <span className="diff-deletions">−{file.deletions}</span></span>
+              </summary>
               <pre>{file.patch}</pre>
             </details>
           ))}
