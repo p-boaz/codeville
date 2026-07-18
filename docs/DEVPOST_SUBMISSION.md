@@ -10,7 +10,7 @@ Developer Tools
 
 ## Tagline
 
-A living desktop command center where five real Codex agents become visible, calm, and accountable.
+The agent command center where "done" means merged — and the map of five real Codex builders is safe to leave on a shared screen.
 
 ## Description
 
@@ -18,7 +18,7 @@ Coding agents can work in parallel, but supervising them usually means scanning 
 
 Five local repositories become five stable workshops. Each can start an independent real `gpt-5.6-sol` Codex thread through one local app-server connection. As a thread plans, reads, edits, tests, waits for approval, or completes, its own builder moves through the corresponding workshop state. Selecting a project changes the Foreman's Desk while every lot remains visible, making concurrent work legible at a glance.
 
-Completion is an outcome, not confetti. Each builder shows a small debrief with what landed and whether follow-up is recommended. Raw agent prose never reaches the visual layer. Codeville extracts a bounded marked object in the privileged process, rejects paths, URLs, emails, code/shell syntax, identifiers, and secret-shaped text, and falls back safely. The renderer otherwise receives only coarse project-scoped events—not prompts, source, diffs, commands, or output.
+Two things make Codeville a command center rather than a dashboard. First, **nothing an agent does touches your repository until you approve it**: every session runs in a scaffold — a git worktree on its own branch — and finished work arrives as a pennant on the workshop. Site inspection shows verified change counts, a deterministic fact line (tests passed, duration) the model cannot claim, the builder's account in which file names survive only when the diffstat vouches for them, and the full diff. One click installs a single squash commit; Keep and Discard cover the other outcomes. Second, **the village view is provably code-free**: raw agent prose never reaches the visual layer — Codeville extracts a bounded marked object in the privileged process, rejects paths, URLs, emails, code/shell syntax, identifiers, and secret-shaped text, and a missing marker becomes an honest "needs review", never a fabricated debrief. The map of five working agents is safe on a projector while the code stays private. A pulsing lantern, village signpost, dock badge, and background notifications route attention to whichever builder needs a decision.
 
 The judge demo creates five disposable repositories in one click and can launch all five builders together. This is not a simulation: the automated release gate starts five real GPT-5.6 Codex threads, verifies five separate source repairs and twenty passing fixture tests, proves the Pixi canvas is never replaced, validates five routed debriefs and progression records, then relaunches the packaged app to prove persistence.
 

@@ -1,6 +1,6 @@
 # Codeville product requirements
 
-Status: five-project demo plus simultaneous user-repository operation implemented
+Status: command-center core implemented — scaffold isolation (worktree per session), in-app diff inspection with Install/Keep/Discard landing, dual-register debriefs, and attention salience, on top of the five-project demo and simultaneous user-repository operation. The living spec for this phase is the Codeville v2 command-center spec (vault, 2026-07-18).
 
 Track: Developer Tools
 

@@ -1,6 +1,8 @@
 # Codeville
 
-Codeville is a living desktop command center for Codex. Five local repositories become five workshops, each with its own real builder, activity state, approval and input boundaries, saved conversation, progression, and completion debrief. You can understand what several agents are doing—and where they landed—without reading five log streams or exposing private code to the visual layer.
+Codeville is a living desktop command center for Codex — the one where **"done" means merged** and the village view is **safe to leave on a shared screen**. Five local repositories become five workshops, each with its own real builder, activity state, approval and input boundaries, saved conversation, progression, and completion debrief.
+
+Every builder works inside a *scaffold*: a git worktree on its own `codeville/<sessionId>` branch. Your checkout stays byte-identical while agents work — `git status` stays clean — until you inspect the diff at the Foreman's Desk and choose **Install in repository** (one squash commit), **Keep branch**, or **Discard**. The village canvas receives only sanitized, project-scoped events — never prompts, paths, diffs, or code — so the map of five working agents can sit on a projector while the repositories stay private.
 
 This is a Developer Tools entry for OpenAI Build Week 2026.
 
@@ -14,9 +16,9 @@ The fastest path requires no repository setup or rebuild:
 4. Click **Create demo village**. Codeville creates five isolated copies of the bundled four-test fixture.
 5. Click **Start all builders**, review the exact five-repository preflight, and confirm to launch five real Codex threads—or select one workshop and click **Start building**.
 6. Answer native Codex questions or a builder's structured stopped-turn question at the Foreman's Desk. Waiting never advances progression and sibling builders continue independently.
-7. Watch validated completions produce a safe speech bubble explaining what landed and whether follow-up is recommended. Missing or malformed result markers become **Needs review**.
+7. Watch finished workshops fly an inspection pennant. Open **Site inspection** for verified change counts, the builder's diffstat-verified account, and the full diff — then **Install in repository** to land one squash commit. Missing result markers become **Needs review**, with the session's real work still inspectable.
 8. Expand **Codex connection proof** for metadata-only runtime evidence. After a turn stops, optionally hand the saved thread to Ghostty and explicitly reclaim it after closing the CLI session.
-7. Quit and reopen Codeville. The five lots, workshop levels, and safe debriefs remain.
+9. Quit and reopen Codeville. The five lots, workshop levels, safe debriefs, and any uninstalled improvements remain.
 
 The demo modifies only disposable repositories under Codeville's app-data directory. To use your own repositories, select an empty lot, choose an existing Git repository, enter that project's task, and start it individually—or check several real-project cards and use **Start selected builders**. Codeville shows an explicit name/path/task preflight and starts nothing until you confirm.
 
@@ -38,7 +40,7 @@ pnpm dev
 Verification and packaging:
 
 ```sh
-pnpm check                                   # typecheck, lint, 37 tests, production build
+pnpm check                                   # typecheck, lint, 82 tests, production build
 pnpm test:e2e                                # safe assignment proof + two disposable real Codex projects
 CODEVILLE_E2E_PROJECT_COUNT=5 pnpm test:e2e # five-project release gate
 pnpm package:mac                             # unsigned release/mac-arm64/Codeville.app
