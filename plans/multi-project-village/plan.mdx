@@ -1,0 +1,278 @@
+---
+title: "Codeville — Five-Project Village"
+brief: "Turn Codeville into a smooth five-project command village with concurrent real Codex sessions and privacy-safe completion debriefs."
+kind: "plan"
+localOnly: true
+---
+
+# Codeville — Five-Project Village
+
+Codeville becomes a small working town rather than one isolated workshop. Five project lots remain visible at once, each with its own builder, task, phase, progression, approval state, and completion debrief. A developer can start work in one project, move to another while it runs, and understand the whole village without reading five terminal logs.
+
+The visible animation stays truthful: every builder transition comes from that project's real Codex thread. The game layer keeps one Pixi application alive and schedules event-driven movement so rapid protocol updates feel continuous instead of destroying and rebuilding the scene.
+
+<Callout id="root-cause" tone="warning">
+
+**Confirmed animation root cause:** `VillageCanvas` currently places `phase`, `level`, and `projectName` in the Pixi initialization effect's dependency array. Every Codex event destroys the Pixi application, replaces the canvas, resets the builder to its spawn point, and discards interpolation/effect state. A live reproduction proved the original canvas survived neither the first planning event nor the next action. The new scene must initialize once and accept state updates through a stable controller.
+
+</Callout>
+
+## Definition of done
+
+<Checklist
+  id="definition-of-done"
+  items={[
+    { id: "five-lots", label: "The desktop village shows five named project lots and five builders at the same time" },
+    { id: "independent-selection", label: "Selecting any lot opens its task, timeline, controls, progression, and debrief without hiding the other lots" },
+    { id: "concurrent-threads", label: "Up to five real Codex threads can run independently and every notification is routed by threadId to the correct project" },
+    { id: "five-demo", label: "One judge action provisions five disposable demo repositories so the multi-project product is immediately visible" },
+    { id: "debrief", label: "A completed builder displays a concise speech bubble stating where the work landed and whether follow-up is recommended" },
+    { id: "safe-debrief", label: "Debriefs are length-limited, schema-validated, sanitized, and cannot expose paths, filenames, code, commands, output, URLs, or secrets" },
+    { id: "smooth-canvas", label: "The same canvas and scene survive project, phase, debrief, and progression updates" },
+    { id: "smooth-motion", label: "Per-builder queues, minimum visual dwell, coalescing, and spring motion prevent snapping or frantic phase thrash" },
+    { id: "approval-queue", label: "Concurrent approval requests retain project identity and wait in a deterministic local queue" },
+    { id: "persistence", label: "Five project lots, progression, and safe completion debriefs survive relaunch" },
+    { id: "accessibility", label: "Every animated state and debrief also exists as readable text in the selected-project panel" },
+    { id: "proof", label: "Unit, concurrency, privacy, renderer-lifetime, source E2E, five-project demo, packaged E2E, and visual QA gates pass" },
+  ]}
+/>
+
+## Product model
+
+The village has exactly five lot slots for the hackathon release. A slot can be empty, idle, active, waiting for approval, completed, failed, or interrupted. All five lots remain visible; selection changes the right-hand Foreman's Desk, not the map. This gives the product a stable spatial memory: Acorn Tasks is always on the same lot, even while another project is selected.
+
+The one-click demo provisions five safe copies of the existing fixture with distinct names. Each copy is a real repository and can start a real Codex thread. A **Start all builders** control is available only for the disposable demo village; real repositories start individually so the user never accidentally launches work across several projects.
+
+<Table
+  id="demo-projects"
+  columns={["Lot", "Demo project", "Default task", "Initial state"]}
+  rows={[
+    ["01", "Acorn Tasks", "Implement the project health summary and pass its tests", "Ready"],
+    ["02", "Lantern API", "Implement the project health summary and pass its tests", "Ready"],
+    ["03", "Mossy Docs", "Implement the project health summary and pass its tests", "Ready"],
+    ["04", "Pine Tests", "Implement the project health summary and pass its tests", "Ready"],
+    ["05", "Willow UI", "Implement the project health summary and pass its tests", "Ready"],
+  ]}
+/>
+
+## Completion debrief
+
+The agent's last visible action is a small speech bubble anchored above its builder. It has two short fields:
+
+- **Landed:** a plain-language outcome, for example “Health summary is working and all checks pass.”
+- **Follow-up:** either one recommended next step or “No follow-up recommended.”
+
+The same content appears in the selected project's panel and persists locally. The Codex thread receives a developer instruction to append a machine-readable `CODEVILLE_DEBRIEF` object to its final answer. The main process parses only that object, validates two bounded strings, applies a deny-list/shape sanitizer, and falls back to a generic verified outcome when the marker is absent or unsafe. Raw agent prose never reaches the renderer.
+
+<Callout id="debrief-decision" tone="decision">
+
+**Debrief contract:** treat the final message as untrusted input. The renderer receives only `{ landed, followUp, followUpRecommended }` after local parsing and sanitization. Maximum 96 characters per text field; reject path separators, URLs, email addresses, backticks, shell sigils, common secret prefixes, and code-shaped identifiers. A rejected debrief becomes “Improvement completed.” plus a test-derived follow-up default.
+
+</Callout>
+
+## Runtime architecture
+
+<Diagram id="runtime-architecture" caption="One app-server, five routed project runtimes, one persistent scene." frame="show">
+
+```html
+<div class="diagram-panel" data-rough style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:16px;padding:18px">
+  <div class="diagram-box" style="display:flex;flex-direction:column;gap:12px;padding:14px">
+    <strong>Privileged Electron process</strong>
+    <div class="diagram-node">Codex app-server client</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="diagram-node">threadId → projectId registry</div>
+      <div class="diagram-node">approval request queue</div>
+      <div class="diagram-node">safe event translator</div>
+      <div class="diagram-node">debrief parser + sanitizer</div>
+    </div>
+    <div class="diagram-node">versioned village store</div>
+  </div>
+  <div class="diagram-box" style="display:flex;flex-direction:column;gap:12px;padding:14px">
+    <strong>Sandboxed renderer</strong>
+    <div class="diagram-node">five ProjectSession reducers</div>
+    <div class="diagram-node">selected-project Foreman's Desk</div>
+    <div class="diagram-node">one long-lived Pixi VillageScene</div>
+    <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px">
+      <div class="diagram-pill">Actor 1</div><div class="diagram-pill">Actor 2</div><div class="diagram-pill">Actor 3</div><div class="diagram-pill">Actor 4</div><div class="diagram-pill">Actor 5</div>
+    </div>
+    <div class="diagram-muted">Only project-scoped safe envelopes cross IPC.</div>
+  </div>
+</div>
+```
+
+</Diagram>
+
+### Event envelope
+
+<AnnotatedCode
+  id="event-contract"
+  filename="src/shared/village-events.ts"
+  language="ts"
+  code={"export interface CompletionDebrief {\n  landed: string;\n  followUp: string;\n  followUpRecommended: boolean;\n}\n\nexport interface ProjectVillageEvent {\n  projectId: string;\n  event: VillageEvent;\n}\n\nexport type VillageEvent =\n  | ExistingActivityEvents\n  | { type: 'session_completed'; at: string; debrief: CompletionDebrief };"}
+  annotations={[
+    { lines: "1-5", label: "Safe debrief", note: "Only validated, bounded plain language crosses IPC or persists." },
+    { lines: "7-10", label: "Routing key", note: "Every reducer update carries an app-owned project id rather than relying on one global active session." },
+    { lines: "12-14", label: "Atomic completion", note: "The debrief and completion arrive together so persistence and speech-bubble state cannot diverge." },
+  ]}
+/>
+
+### Session ownership
+
+`electron/main.ts` replaces the singleton `activeSession` with two maps: `sessionsByThreadId` and `threadIdByProjectId`. Notification and approval params already carry `threadId`, so routing is deterministic. A project cannot start a second turn while its own turn is active, but other projects remain independent. Interrupt takes `projectId`; approval responses preserve both `requestId` and `projectId`.
+
+The single `AppServerClient` remains the transport owner. JSON-RPC request correlation already supports concurrent requests, so the new work is project ownership and cleanup rather than five subprocesses. Each runtime is registered immediately after `thread/start` and before `turn/start`; a failed start removes only that runtime. Completed `agentMessage` items are accumulated privately by `threadId` so debrief extraction does not depend on the terminal turn payload carrying a full item view.
+
+## Smooth gameplay model
+
+`VillageCanvas` initializes `Application`, `VillageScene`, five `ProjectLot` containers, and five `BuilderActor` controllers once. A second effect calls `scene.update(snapshot)` without touching the canvas or GPU resources.
+
+Each `BuilderActor` holds independent visual state:
+
+```ts
+interface BuilderVisualState {
+  displayedPhase: SessionPhase;
+  queuedPhases: SessionPhase[];
+  enteredAtMs: number;
+  position: Point;
+  velocity: Point;
+  target: Point;
+}
+```
+
+The scheduler follows four rules:
+
+1. Deduplicate repeated phase events from reasoning and item deltas.
+2. Keep planning/reading/editing/testing visible for at least 650 ms unless approval or failure preempts them.
+3. When more than three phases queue, coalesce adjacent planning/reading states but retain editing, testing, approval, and terminal outcomes.
+4. Move with a delta-time critically damped spring and animate gait from actual velocity. Never set an actor back to its spawn point on phase change.
+
+Completion waits behind already-observed work phases, then moves the builder to its doorstep, upgrades the lot, and eases the bubble in. Visual choreography may trail the logical sidebar state by at most two seconds; terminal events skip stale low-value planning/reading entries when needed to stay inside that bound. The bubble remains until that project starts another task or the user dismisses it; it does not expire while the user is reading another project.
+
+<Table
+  id="motion-parameters"
+  columns={["Behavior", "Target", "Reason"]}
+  rows={[
+    ["Minimum active-phase dwell", "650 ms", "Readable at typical app-server burst rates without making the demo sluggish"],
+    ["Terminal phase dwell", "Persistent", "Completion/failure remains visible until user action"],
+    ["Spring settle", "≤ 550 ms", "Fast but continuous movement between nearby stations"],
+    ["Queue soft limit", "3 phases", "Prevents stale choreography from trailing far behind real work"],
+    ["Canvas replacements", "0 after mount", "Preserves actors, particles, textures, and motion state"],
+  ]}
+/>
+
+## Persistence model
+
+Progression data migrates from version 1 to version 2 rather than resetting existing villages.
+
+<DataModel
+  id="village-data"
+  entities={[
+    {
+      id: "village",
+      name: "VillageData v2",
+      fields: [
+        { name: "version", type: "literal 2", pk: true },
+        { name: "lots", type: "VillageLot[5]" },
+        { name: "projects", type: "Record<projectId, ProjectProgress>" },
+      ],
+    },
+    {
+      id: "lot",
+      name: "VillageLot",
+      fields: [
+        { name: "slot", type: "0 | 1 | 2 | 3 | 4", pk: true },
+        { name: "projectId", type: "string", fk: "project.projectId", nullable: true },
+        { name: "path", type: "local string", nullable: true },
+        { name: "name", type: "local string", nullable: true },
+        { name: "isDemo", type: "boolean" },
+      ],
+    },
+    {
+      id: "project",
+      name: "ProjectProgress",
+      fields: [
+        { name: "projectId", type: "string", pk: true },
+        { name: "level", type: "integer" },
+        { name: "completedSessions", type: "integer" },
+        { name: "lastCompletedAt", type: "ISO string", nullable: true },
+        { name: "lastDebrief", type: "CompletionDebrief", nullable: true },
+      ],
+    },
+  ]}
+  relations={[
+    { from: "lot", to: "project", kind: "1-1" },
+  ]}
+/>
+
+Project task text is never persisted. Paths and names remain local in the mode-`0600` atomic store. Project ids are opaque local UUIDs and never derived from or reversible to a filesystem path. The migration creates one UUID for each version 1 path key, assigns the first migrated project to lot 01, preserves every prior progression record, and leaves remaining lot slots empty.
+
+## Implementation map
+
+<FileTree
+  id="file-map"
+  title="Planned source changes"
+  entries={[
+    { path: "src/shared/village-events.ts", change: "modified", note: "Project envelopes, lot model, debrief contract, project-scoped IPC" },
+    { path: "src/codex/debrief.ts", change: "added", note: "Marker parsing, schema validation, privacy sanitization, fallbacks" },
+    { path: "src/codex/translator.ts", change: "modified", note: "Extract completion debrief from terminal turn items" },
+    { path: "electron/main.ts", change: "modified", note: "Five-thread registry, routing, demo village provisioning, approval queue" },
+    { path: "electron/codex/app-server-client.ts", change: "modified", note: "Debrief developer instruction and project-safe concurrent lifecycle" },
+    { path: "electron/progression-store.ts", change: "modified", note: "Version 1 migration and version 2 lot/debrief persistence" },
+    { path: "electron/preload.ts", change: "modified", note: "Project-scoped start/interrupt/event/approval methods" },
+    { path: "src/state/village-machine.ts", change: "added", note: "Five independent project session reducers and selected lot" },
+    { path: "src/state/visual-phase-queue.ts", change: "added", note: "Pure dedupe, dwell, coalescing, and terminal-priority scheduler" },
+    { path: "src/game/VillageCanvas.tsx", change: "modified", note: "Mount-once scene controller instead of effect-driven rebuild" },
+    { path: "src/game/VillageScene.ts", change: "added", note: "Five lots, actor updates, layout, bubbles, scene lifetime" },
+    { path: "src/game/BuilderActor.ts", change: "added", note: "Spring motion and phase choreography per project" },
+    { path: "src/features/village/ProjectRail.tsx", change: "added", note: "Five project cards, selection, aggregate village status" },
+    { path: "src/features/task/TaskPanel.tsx", change: "modified", note: "Selected-project task, timeline, controls, and debrief" },
+    { path: "src/App.tsx", change: "modified", note: "Village-level state and project-scoped actions" },
+    { path: "src/styles.css", change: "modified", note: "Five-project rail, responsive desktop density, debrief surface" },
+    { path: "fixtures/demo-repo", change: "modified", note: "Reusable seed copied into five independent demo repositories" },
+    { path: "e2e/codeville.e2e.ts", change: "modified", note: "Five visible projects, stable canvas, completion bubble, relaunch" },
+    { path: "e2e/concurrent-sessions.e2e.ts", change: "added", note: "Two real simultaneous threads prove notification isolation" },
+  ]}
+/>
+
+## Ordered implementation
+
+1. **Lock contracts first.** Add the version 2 village schema, v1 migration, `ProjectVillageEvent`, `CompletionDebrief`, and pure tests. No renderer or protocol code moves until privacy and migration invariants pass.
+2. **Route real concurrency.** Replace singleton session ownership in `electron/main.ts`, include `projectId` in every renderer envelope, make interrupt/approval project-scoped, and prove interleaved notifications cannot cross projects.
+3. **Create the five-project demo.** Provision five fixture copies and persist their lot assignments. Add individual start plus demo-only **Start all builders** with clear confirmation copy.
+4. **Build completion debriefs.** Add developer instructions, parse the final turn's marker, sanitize locally, persist safe output, and test malicious/path/code-shaped payloads plus missing markers.
+5. **Replace the game runtime.** Split scene, lot, and actor ownership. Mount Pixi once, update via controller, add phase queues and spring movement, and render anchored debrief bubbles.
+6. **Recompose the desktop shell.** Keep the present brand/topbar, expand the stage to the five-lot ward, add the project rail and selected-project desk, and preserve readable state at the 1080 px minimum width.
+7. **Prove gameplay.** Add a canvas identity regression, deterministic scheduler tests, fake-clock actor motion assertions, five-stream renderer tests, and screenshot/animation sampling for overlap and visual continuity.
+8. **Prove the real product.** Run two concurrent real Codex repairs in the default acceptance suite and run the same harness with `CODEVILLE_E2E_PROJECT_COUNT=5` as the release gate. Verify five isolated repositories, five routed debriefs, relaunch, and repeat against the packaged app.
+9. **Refresh the submission.** Update PRD, README, privacy statement, judge instructions, screenshots, video script, evidence, package checksum, and Devpost story around the multi-agent town.
+
+## Verification gates
+
+<Checklist
+  id="verification-gates"
+  items={[
+    { id: "contract-tests", label: "Debrief sanitizer, v1→v2 migration, project routing, reducer isolation, and phase scheduler tests pass" },
+    { id: "canvas-identity", label: "Playwright proves the same canvas node survives at least planning → reading → editing → testing → completed" },
+    { id: "five-visible", label: "Desktop acceptance test finds five named lots, five phase labels, and five selectable project cards simultaneously" },
+    { id: "concurrency", label: "Two real Codex threads run concurrently and each edit/test/debrief lands in only its own repository and UI state" },
+    { id: "all-five", label: "Five disposable real demo threads can be active together without routing, approval, persistence, or rendering corruption" },
+    { id: "motion", label: "Frame samples show monotonic actor travel with no spawn reset and phase queues never exceed their coalescing bound" },
+    { id: "privacy", label: "Adversarial debrief fixtures containing paths, URLs, commands, code identifiers, and secret-shaped values fall back safely" },
+    { id: "relaunch", label: "Relaunch restores five lot assignments, five levels, and safe last debriefs but no in-flight task text or process state" },
+    { id: "responsive", label: "Visual QA passes at 1440×900 and minimum 1080×700 without bubbles, lots, or panel controls overlapping" },
+    { id: "package", label: "Final branded Apple-silicon package passes the same real-session path with no development server" },
+  ]}
+/>
+
+## Risks and safeguards
+
+- **Bursting protocol events:** phase queues coalesce only visually; the safe activity timeline still records every meaningful event.
+- **Five-session resource pressure:** one app-server owns all threads; start failures remain isolated per project and never cancel siblings.
+- **Completion ordering:** the final debrief is extracted from the terminal turn payload before progression is recorded and the atomic completion event is emitted.
+- **Speech-bubble overlap:** each bubble is anchored to a lot-specific gutter, has a fixed wrap width, and collapses to a small completion badge when another bubble occupies the same screen lane.
+- **Unsafe model summary:** marker content is untrusted and deny-by-default. Generic outcome/follow-up text is better than leaking a filename.
+- **Demo duration:** the video starts multiple builders, follows one to completion, and uses the other active lots to prove concurrency without waiting for all five on camera.
+
+## Approval boundary
+
+The plan commits to five fixed lots, real independent sessions, persistent safe debriefs, and a stable one-canvas scheduler. Implementation touches the privileged session registry, persisted schema, public IPC contract, renderer state model, and entire Pixi scene. Those are the intended boundaries for this iteration.
