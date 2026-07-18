@@ -75,4 +75,10 @@ describe('Codex event translator', () => {
   ] as const)('categorizes %s as %s', (command, category) => {
     expect(categorizeCommand(command)).toBe(category);
   });
+
+  it('requires a valid result before emitting completion', () => {
+    const message = { method: 'turn/completed', params: { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed' } } } as ServerNotification;
+    expect(translateCodexMessage(message, { model: 'gpt-5.6-sol', now, completionResult: null })).toEqual([{ type: 'session_needs_review', at: '2026-07-18T00:00:00.000Z' }]);
+    expect(translateCodexMessage(message, { model: 'gpt-5.6-sol', now, completionResult: { status: 'waiting_for_input', pendingInput: { source: 'terminal', title: 'Builder needs direction', questions: [{ id: 'reply', header: 'Reply', question: 'Which channel?', isSecret: false, choices: [] }] } } })).toEqual([{ type: 'input_required', at: '2026-07-18T00:00:00.000Z', input: { source: 'terminal', title: 'Builder needs direction', questions: [{ id: 'reply', header: 'Reply', question: 'Which channel?', isSecret: false, choices: [] }] } }]);
+  });
 });

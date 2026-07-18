@@ -8,6 +8,10 @@ export type SessionPhase =
   | 'editing'
   | 'testing'
   | 'approval'
+  | 'input'
+  | 'waiting'
+  | 'needs_review'
+  | 'external'
   | 'completed'
   | 'failed'
   | 'interrupted';
@@ -42,9 +46,13 @@ const labels: Record<VillageEvent['type'], string> = {
   editing: 'Building the improvement',
   running_command: 'Running an inspection',
   approval_required: 'Waiting for your decision',
+  input_required: 'Waiting for your reply',
+  input_resolved: 'Reply sent to the builder',
   tests_passed: 'Inspection passed',
   tests_failed: 'Inspection found a problem',
   session_completed: 'Improvement completed',
+  session_needs_review: 'Result needs review',
+  session_external: 'Conversation moved to Ghostty',
   session_failed: 'Construction paused',
   session_interrupted: 'Work stopped safely',
 };
@@ -121,8 +129,16 @@ function phaseForEvent(event: VillageEvent): SessionPhase {
       return 'testing';
     case 'approval_required':
       return 'approval';
+    case 'input_required':
+      return event.input.source === 'native' ? 'input' : 'waiting';
+    case 'input_resolved':
+      return 'planning';
     case 'session_completed':
       return 'completed';
+    case 'session_needs_review':
+      return 'needs_review';
+    case 'session_external':
+      return 'external';
     case 'session_failed':
       return 'failed';
     case 'session_interrupted':
@@ -133,7 +149,7 @@ function phaseForEvent(event: VillageEvent): SessionPhase {
 export function projectProgress(
   progression: ProgressionData,
   projectId: string | null,
-): { level: number; completedSessions: number; lastDebrief: CompletionDebrief | null } {
-  if (!projectId) return { level: 0, completedSessions: 0, lastDebrief: null };
-  return progression.projects[projectId] ?? { level: 0, completedSessions: 0, lastDebrief: null };
+): ProgressionData['projects'][string] | null {
+  if (!projectId) return null;
+  return progression.projects[projectId] ?? null;
 }

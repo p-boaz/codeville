@@ -79,7 +79,12 @@ button:disabled { cursor: not-allowed; opacity: 0.42; }
 .rail-heading strong { margin-top: 2px; font: 500 19px Georgia, serif; }
 .rail-heading small { color: var(--cream-muted); font-size: 9px; }
 .project-list { display: flex; flex-direction: column; gap: 8px; }
+.project-tab-row { position: relative; }
 .project-tab { width: 100%; min-width: 0; display: grid; grid-template-columns: 25px minmax(0, 1fr) 7px; align-items: center; gap: 8px; padding: 11px 9px; border: 1px solid transparent; border-radius: 13px; color: var(--cream-muted); background: transparent; text-align: left; transition: background .18s ease, border-color .18s ease, transform .18s ease; }
+.project-tab-row:has(.batch-select) .project-tab { padding-right: 28px; }
+.batch-select { position: absolute; z-index: 2; top: 50%; right: 10px; display: grid; place-items: center; width: 16px; height: 16px; transform: translateY(-50%); }
+.batch-select input { width: 13px; height: 13px; margin: 0; accent-color: var(--gold); cursor: pointer; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .project-tab:hover { background: rgba(255,255,255,.04); transform: translateX(2px); }
 .project-tab.selected { border-color: rgba(232,184,91,.28); color: var(--cream); background: rgba(232,184,91,.09); }
 .lot-number { color: rgba(255,245,219,.36); font: 700 9px ui-monospace, monospace; }
@@ -90,8 +95,11 @@ button:disabled { cursor: not-allowed; opacity: 0.42; }
 .phase-indicator { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.2); }
 .phase-starting .phase-indicator, .phase-planning .phase-indicator, .phase-reading .phase-indicator, .phase-editing .phase-indicator, .phase-testing .phase-indicator { background: var(--gold); box-shadow: 0 0 10px rgba(232,184,91,.48); animation: pulse 1.3s ease-in-out infinite; }
 .phase-completed .phase-indicator { background: #8cd792; }
-.phase-approval .phase-indicator, .phase-failed .phase-indicator { background: #df806d; }
+.phase-approval .phase-indicator, .phase-input .phase-indicator, .phase-waiting .phase-indicator, .phase-needs_review .phase-indicator, .phase-failed .phase-indicator { background: #df806d; }
+.phase-external .phase-indicator { background: #8fa8dc; }
+.phase-interrupted .phase-indicator { background: #b8ad95; }
 .start-all-button { min-height: 40px; display: flex; justify-content: center; align-items: center; gap: 8px; border: 1px solid rgba(232,184,91,.45); border-radius: 12px; color: var(--ink); background: linear-gradient(180deg, #ffdb81, #e8b85b); font-size: 10px; font-weight: 800; }
+.start-selected-button { min-height: 42px; display: flex; justify-content: center; align-items: center; gap: 8px; border: 1px solid rgba(140,215,146,.5); border-radius: 12px; color: #d9f5dc; background: rgba(77,142,91,.2); box-shadow: inset 0 0 0 1px rgba(140,215,146,.07); font-size: 10px; font-weight: 800; }
 .rail-privacy { margin-top: auto; display: flex; gap: 6px; align-items: center; padding: 0 8px; color: rgba(255,245,219,.42); font-size: 8px; }
 .rail-privacy span { color: var(--gold); }
 @keyframes pulse { 50% { opacity: .42; transform: scale(.8); } }
@@ -186,6 +194,28 @@ button:disabled { cursor: not-allowed; opacity: 0.42; }
 .debrief-card strong { color: #a4dfaa; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
 .debrief-card p { margin: 0; color: var(--cream); font-size: 10px; line-height: 1.45; }
 
+.interaction-card, .review-card, .proof-panel, .handoff-actions { padding: 14px; border: 1px solid rgba(232,184,91,.26); border-radius: 15px; background: rgba(232,184,91,.06); }
+.interaction-card { display: flex; flex-direction: column; gap: 13px; }
+.interaction-card fieldset { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; }
+.interaction-card legend { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; padding: 0; }
+.interaction-card legend strong { color: var(--gold-bright); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+.interaction-card legend span, .interaction-card > small, .handoff-actions small { color: var(--cream-muted); font-size: 10px; line-height: 1.45; }
+.input-choice { display: flex; align-items: center; gap: 8px; color: var(--cream); font-size: 11px; }
+.input-choice input { accent-color: var(--gold); }
+.interaction-card fieldset > input { width: 100%; padding: 10px 11px; border: 1px solid var(--line); border-radius: 10px; outline: none; color: var(--cream); background: rgba(0,0,0,.18); font-size: 11px; }
+.interaction-card fieldset > input:focus { border-color: rgba(255,216,121,.58); }
+.review-card strong { color: #ef9a83; font-size: 11px; }
+.review-card p, .proof-panel p { margin: 6px 0 0; color: var(--cream-muted); font-size: 10px; line-height: 1.5; }
+.proof-panel summary { display: flex; justify-content: space-between; gap: 10px; cursor: pointer; font-size: 11px; }
+.proof-panel summary strong { color: #a4dfaa; font-size: 9px; text-transform: uppercase; }
+.proof-panel dl { display: flex; flex-direction: column; gap: 7px; margin: 13px 0 0; }
+.proof-panel dl div { display: grid; grid-template-columns: 88px minmax(0,1fr); gap: 8px; }
+.proof-panel dt { color: var(--cream-muted); font-size: 9px; }
+.proof-panel dd { margin: 0; overflow: hidden; color: var(--cream); font: 9px ui-monospace, monospace; text-overflow: ellipsis; white-space: nowrap; }
+.proof-privacy { padding-top: 9px; border-top: 1px solid var(--line); }
+.handoff-actions { display: flex; flex-direction: column; gap: 8px; }
+.handoff-notice { padding: 11px 13px; border: 1px solid rgba(140,215,146,.3); border-radius: 12px; color: #a4dfaa; background: rgba(140,215,146,.08); font-size: 10px; line-height: 1.45; overflow-wrap: anywhere; }
+
 .privacy-note { display: flex; gap: 11px; padding: 13px; border: 1px solid rgba(232,184,91,.18); border-radius: 14px; background: rgba(232,184,91,.055); }
 .privacy-icon { color: var(--gold); }
 .privacy-note div { display: flex; flex-direction: column; gap: 4px; }
@@ -210,6 +240,18 @@ button:disabled { cursor: not-allowed; opacity: 0.42; }
 .approval-details small { color: var(--cream-muted); font-size: 9px; }
 .approval-warning { margin-top: 12px !important; font-size: 9px !important; }
 .approval-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 9px; }
+
+.batch-dialog { width: min(680px, 100%); max-height: calc(100vh - 60px); display: flex; flex-direction: column; align-items: center; padding: 28px; border: 2px solid rgba(223,128,109,.68); border-radius: 24px; background: #153c38; box-shadow: 0 30px 90px rgba(0,0,0,.5), 0 0 36px rgba(223,128,109,.12); text-align: center; }
+.batch-warning { width: 54px; height: 54px; display: grid; place-items: center; margin-bottom: 15px; border-radius: 50%; color: #153c38; background: #ef9a83; font: 800 27px Georgia, serif; }
+.batch-dialog h2 { margin: 8px 0; font: 500 28px Georgia, serif; }
+.batch-dialog > p { max-width: 550px; margin: 0 0 18px; color: var(--cream-muted); font-size: 12px; line-height: 1.55; }
+.batch-project-list { width: 100%; min-height: 0; display: flex; flex-direction: column; gap: 9px; margin: 0; padding: 0; overflow-y: auto; list-style: none; text-align: left; }
+.batch-project-list li { display: flex; flex-direction: column; gap: 5px; padding: 13px 15px; border: 1px solid var(--line); border-radius: 13px; background: rgba(0,0,0,.17); }
+.batch-project-list strong { color: var(--cream); font-size: 13px; }
+.batch-project-list code { color: var(--gold-bright); font-size: 10px; overflow-wrap: anywhere; }
+.batch-project-list span { color: var(--cream-muted); font-size: 11px; line-height: 1.45; white-space: pre-wrap; }
+.batch-actions { width: 100%; display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px; margin-top: 18px; }
+.danger-confirm-button { min-height: 44px; border: 1px solid #ef9a83; border-radius: 13px; color: #201a18; background: linear-gradient(180deg, #f7b09d, #df806d); font-size: 12px; font-weight: 800; }
 
 @media (max-width: 1120px) {
   .workspace { grid-template-columns: 174px minmax(0, 1fr) 330px; }

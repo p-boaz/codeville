@@ -20,7 +20,7 @@ The entrant must run `/feedback` in this primary thread before submitting and pa
 | `ada7a8c` | 2026-07-17 | Judge-ready one-project package and submission documentation |
 | `b87af29` | 2026-07-17 | Approved five-project visual/architecture implementation plan |
 | `34319d2` | 2026-07-17 | Two-thread installed app-server concurrency proof |
-| `712b16a` | 2026-07-17 | Real `CODEVILLE_DEBRIEF` protocol proof |
+| `712b16a` | 2026-07-17 | Original real structured-debrief protocol probe |
 | `32d4799` | 2026-07-18 08:10 | Five-project concurrency, debrief privacy, persistent scene, migration, E2E |
 
 `git log --format='%h %cI %s'` is the canonical timestamped record.
@@ -48,6 +48,17 @@ Verified July 18, 2026 PT:
 - SHA-256: `7e3abf14874b5637613861d97f22ce6cc9aec3e6f15c7d6db2b9b18bed0c3d3e`.
 
 The E2E harness is not mocked. It starts the installed Codex app-server over JSONL stdio, registers independent project ownership, requests real GPT-5.6 edits, independently reruns every fixture test, validates project-scoped sanitized debriefs and progression, marks the canvas node before work and proves it survives all events, closes Electron, and verifies restored state after relaunch.
+
+The user-repository extension adds safe assignment/relaunch proof, per-project memory-only task isolation, subset selection, explicit no-launch-before-confirmation, detached progression recovery, approval identity, sibling failure/interrupt isolation, and an opt-in-only real working-tree gate. Normal tests continue to mutate only temporary fixture repositories.
+
+On July 18, the permanent interaction gate replaced fallback completion with discriminated `CODEVILLE_RESULT` validation. The deterministic source and packaged fixtures cover native multi-question input, masked secrets, stopped-turn waiting, same-thread relaunch continuation, needs-review non-progression, concurrent sibling routing, metadata proof, exclusive Ghostty handoff, and explicit reclaim. Persistence assertions prove replies and secret values are absent.
+
+Extension verification, July 18, 2026 PT:
+
+- Typecheck, lint, production renderer/Electron build, 12 test files, and 37 unit/component tests passed.
+- Source E2E passed safe assignment/relaunch plus two concurrent disposable real Codex builders in 48.0 seconds; the user-working-tree case skipped without authorization.
+- A fresh unsigned Apple-silicon `release/mac-arm64/Codeville.app` was rebuilt.
+- Packaged E2E passed the same two active gates in 41.4 seconds; the opt-in user-working-tree case again skipped.
 
 ## Pre-existing and third-party work
 

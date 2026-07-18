@@ -19,4 +19,9 @@ describe('visual phase queue', () => {
     expect(phaseDwellMs('editing')).toBe(650);
     expect(phaseDwellMs('completed')).toBe(Number.POSITIVE_INFINITY);
   });
+
+  it.each(['waiting', 'needs_review', 'external'] as const)('treats %s as a stable terminal visual phase', (phase) => {
+    expect(enqueueVisualPhase('editing', ['planning', 'testing'], phase)).toEqual(['testing', phase]);
+    expect(phaseDwellMs(phase)).toBe(Number.POSITIVE_INFINITY);
+  });
 });

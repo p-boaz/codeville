@@ -1,13 +1,13 @@
 import type { ServerNotification } from '../../electron/codex/generated/ServerNotification';
 import type { ServerRequest } from '../../electron/codex/generated/ServerRequest';
 import type { ThreadItem } from '../../electron/codex/generated/v2/ThreadItem';
-import type { CommandCategory, CompletionDebrief, VillageEvent } from '../shared/village-events';
+import type { CodevilleResult, CommandCategory, VillageEvent } from '../shared/village-events';
 
 export type RawCodexMessage = ServerNotification | ServerRequest;
 
 export function translateCodexMessage(
   message: RawCodexMessage,
-  context: { model: string; now?: () => Date; completionDebrief?: CompletionDebrief },
+  context: { model: string; now?: () => Date; completionResult?: CodevilleResult | null },
 ): VillageEvent[] {
   const at = (context.now ?? (() => new Date()))().toISOString();
 
@@ -30,15 +30,11 @@ export function translateCodexMessage(
     case 'item/permissions/requestApproval':
       return [{ type: 'approval_required', at, requestId: String(message.id), category: 'permissions' }];
     case 'turn/completed':
-      if (message.params.turn.status === 'completed') return [{
-        type: 'session_completed',
-        at,
-        debrief: context.completionDebrief ?? {
-          landed: 'Improvement completed.',
-          followUp: 'Review the completed work before the next task.',
-          followUpRecommended: true,
-        },
-      }];
+      if (message.params.turn.status === 'completed') {
+        if (context.completionResult?.status === 'completed') return [{ type: 'session_completed', at, debrief: context.completionResult.debrief }];
+        if (context.completionResult?.status === 'waiting_for_input') return [{ type: 'input_required', at, input: context.completionResult.pendingInput }];
+        return [{ type: 'session_needs_review', at }];
+      }
       if (message.params.turn.status === 'interrupted') return [{ type: 'session_interrupted', at }];
       return [{ type: 'session_failed', at, recoverable: true }];
     case 'error':

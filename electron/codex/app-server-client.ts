@@ -4,6 +4,7 @@ import { createInterface, type Interface as ReadLineInterface } from 'node:readl
 import type { ServerNotification } from './generated/ServerNotification';
 import type { ServerRequest } from './generated/ServerRequest';
 import type { ThreadStartResponse } from './generated/v2/ThreadStartResponse';
+import type { ThreadResumeResponse } from './generated/v2/ThreadResumeResponse';
 import type { TurnStartResponse } from './generated/v2/TurnStartResponse';
 import { debriefDeveloperInstructions } from '../../src/codex/debrief';
 
@@ -44,6 +45,7 @@ export class AppServerClient {
   private nextRequestId = 1;
   private pending = new Map<number | string, PendingRequest>();
   private initialized = false;
+  private connectedAt: string | null = null;
 
   constructor(options: AppServerClientOptions = {}) {
     this.binary = options.binary ?? 'codex';
@@ -80,19 +82,12 @@ export class AppServerClient {
     });
     this.notify('initialized');
     this.initialized = true;
+    this.connectedAt = new Date().toISOString();
   }
 
   async startThread(cwd: string, model: string): Promise<ThreadStartResponse> {
     this.assertInitialized();
-    return this.request<ThreadStartResponse>('thread/start', {
-      cwd,
-      model,
-      approvalPolicy: 'on-request',
-      sandbox: 'workspace-write',
-      serviceName: 'codeville',
-      developerInstructions: debriefDeveloperInstructions,
-      ephemeral: false,
-    });
+    return this.request<ThreadStartResponse>('thread/start', buildThreadStartParams(cwd, model));
   }
 
   async startTurn(threadId: string, task: string): Promise<TurnStartResponse> {
@@ -103,9 +98,23 @@ export class AppServerClient {
     });
   }
 
+  async resumeThread(threadId: string, cwd: string, model: string): Promise<ThreadResumeResponse> {
+    this.assertInitialized();
+    return this.request<ThreadResumeResponse>('thread/resume', buildThreadResumeParams(threadId, cwd, model));
+  }
+
+  get pid(): number | null { return this.process?.pid ?? null; }
+  get connectionStartedAt(): string | null { return this.connectedAt; }
+  get connected(): boolean { return Boolean(this.process && this.initialized); }
+
   async interruptTurn(threadId: string, turnId: string): Promise<void> {
     this.assertInitialized();
     await this.request('turn/interrupt', { threadId, turnId });
+  }
+
+  async unsubscribeThread(threadId: string): Promise<void> {
+    this.assertInitialized();
+    await this.request('thread/unsubscribe', { threadId });
   }
 
   respond(id: number | string, result: unknown): void {
@@ -194,5 +203,14 @@ export class AppServerClient {
     this.lines = null;
     this.process = null;
     this.initialized = false;
+    this.connectedAt = null;
   }
+}
+
+export function buildThreadStartParams(cwd: string, model: string) {
+  return { cwd, model, approvalPolicy: 'on-request' as const, sandbox: 'workspace-write' as const, serviceName: 'codeville', developerInstructions: debriefDeveloperInstructions, ephemeral: false };
+}
+
+export function buildThreadResumeParams(threadId: string, cwd: string, model: string) {
+  return { threadId, cwd, model, approvalPolicy: 'on-request' as const, sandbox: 'workspace-write' as const, developerInstructions: debriefDeveloperInstructions };
 }

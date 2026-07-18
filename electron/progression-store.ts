@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
-import type { CompletionDebrief, ProgressionData, ProjectSelection, VillageLot } from '../src/shared/village-events';
+import { resumablePendingInput } from '../src/codex/debrief';
+import type { CompletionDebrief, ProgressionData, ProjectSelection, SafePendingInput, VillageLot } from '../src/shared/village-events';
 
 type ProgressionV1 = {
   version: 1;
@@ -19,15 +20,27 @@ export const emptyProgression = (): ProgressionData => ({
 
 export class ProgressionStore {
   private readonly filePath: string;
+  private firstRead = true;
+  private mutationTail: Promise<void> = Promise.resolve();
 
   constructor(userDataPath: string) {
     this.filePath = join(userDataPath, 'progression.json');
   }
 
   async read(): Promise<ProgressionData> {
+    await this.mutationTail;
+    return this.readNow();
+  }
+
+  private async readNow(): Promise<ProgressionData> {
     try {
       const parsed = JSON.parse(await readFile(this.filePath, 'utf8')) as unknown;
-      if (validateProgression(parsed)) return parsed;
+      if (validateProgression(parsed)) {
+        const { data, changed } = normalizeProgression(parsed, this.firstRead);
+        this.firstRead = false;
+        if (changed) await this.write(data);
+        return data;
+      }
       if (validateProgressionV1(parsed)) {
         const migrated = migrateProgression(parsed);
         await this.write(migrated);
@@ -35,34 +48,49 @@ export class ProgressionStore {
       }
       return emptyProgression();
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return emptyProgression();
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') { this.firstRead = false; return emptyProgression(); }
       throw error;
     }
   }
 
   async assignProject(selection: Omit<ProjectSelection, 'projectId'> & { projectId?: string }): Promise<ProjectSelection> {
-    const data = await this.read();
-    const existing = data.lots.find((lot) => lot.path === selection.path);
+    return this.enqueueMutation(async () => {
+    const data = await this.readNow();
+    const existing = Object.values(data.projects).find((project) => project.repositoryPath === selection.path);
     const projectId = existing?.projectId ?? selection.projectId ?? randomUUID();
-    const previousLot = data.lots[selection.slot];
-    if (previousLot.projectId && previousLot.projectId !== projectId) delete data.projects[previousLot.projectId];
     for (const lot of data.lots) {
       if (lot.projectId === projectId) Object.assign(lot, { projectId: null, path: null, name: null, isDemo: false });
     }
     data.lots[selection.slot] = { ...selection, projectId };
     data.projects[projectId] ??= {
       projectId,
+      repositoryPath: selection.path,
+      repositoryName: selection.name,
+      isDemo: selection.isDemo,
       level: 0,
       completedSessions: 0,
       lastCompletedAt: null,
       lastDebrief: null,
+      lastThreadId: null,
+      conversationStatus: 'idle',
+      pendingInput: null,
+      handoffAt: null,
+      safeEventCount: 0,
+      lastTurnStartedAt: null,
     };
+    Object.assign(data.projects[projectId], {
+      repositoryPath: selection.path,
+      repositoryName: selection.name,
+      isDemo: selection.isDemo,
+    });
     await this.write(data);
     return { ...selection, projectId };
+    });
   }
 
-  async recordCompletion(projectId: string, at: string, debrief: CompletionDebrief): Promise<ProgressionData> {
-    const data = await this.read();
+  async recordCompletion(projectId: string, at: string, debrief: CompletionDebrief, safeEventCount?: number, turnStartedAt?: string | null): Promise<ProgressionData> {
+    return this.enqueueMutation(async () => {
+    const data = await this.readNow();
     const current = data.projects[projectId];
     if (!current) throw new Error('The completed project is not assigned to this village');
     data.projects[projectId] = {
@@ -71,15 +99,43 @@ export class ProgressionStore {
       completedSessions: current.completedSessions + 1,
       lastCompletedAt: at,
       lastDebrief: debrief,
+      conversationStatus: 'idle',
+      pendingInput: null,
+      handoffAt: null,
+      ...(safeEventCount === undefined ? {} : { safeEventCount }),
+      ...(turnStartedAt === undefined ? {} : { lastTurnStartedAt: turnStartedAt }),
     };
     await this.write(data);
     return data;
+    });
+  }
+
+  async recordThread(projectId: string, threadId: string, turnStartedAt: string, safeEventCount = 0): Promise<ProgressionData> {
+    return this.updateConversation(projectId, { lastThreadId: threadId, conversationStatus: 'idle', pendingInput: null, handoffAt: null, safeEventCount, lastTurnStartedAt: turnStartedAt });
+  }
+
+  async recordWaiting(projectId: string, threadId: string, pendingInput: SafePendingInput, safeEventCount = 0, turnStartedAt: string | null = null): Promise<ProgressionData> {
+    return this.updateConversation(projectId, { lastThreadId: threadId, conversationStatus: 'waiting', pendingInput, handoffAt: null, safeEventCount, lastTurnStartedAt: turnStartedAt });
+  }
+
+  async recordNeedsReview(projectId: string, threadId: string, safeEventCount = 0, turnStartedAt: string | null = null): Promise<ProgressionData> {
+    return this.updateConversation(projectId, { lastThreadId: threadId, conversationStatus: 'needs_review', pendingInput: null, handoffAt: null, safeEventCount, lastTurnStartedAt: turnStartedAt });
+  }
+
+  async recordExternal(projectId: string, at: string): Promise<ProgressionData> {
+    return this.updateConversation(projectId, { conversationStatus: 'external', pendingInput: null, handoffAt: at });
+  }
+
+  async recordReclaimed(projectId: string): Promise<ProgressionData> {
+    return this.updateConversation(projectId, { conversationStatus: 'idle', pendingInput: null, handoffAt: null });
   }
 
   async reset(): Promise<ProgressionData> {
-    const data = emptyProgression();
-    await this.write(data);
-    return data;
+    return this.enqueueMutation(async () => {
+      const data = emptyProgression();
+      await this.write(data);
+      return data;
+    });
   }
 
   private async write(data: ProgressionData): Promise<void> {
@@ -87,6 +143,23 @@ export class ProgressionStore {
     const temporaryPath = `${this.filePath}.tmp`;
     await writeFile(temporaryPath, `${JSON.stringify(data, null, 2)}\n`, { mode: 0o600 });
     await rename(temporaryPath, this.filePath);
+  }
+
+  private async updateConversation(projectId: string, update: Partial<Pick<ProgressionData['projects'][string], 'lastThreadId' | 'conversationStatus' | 'pendingInput' | 'handoffAt' | 'safeEventCount' | 'lastTurnStartedAt'>>): Promise<ProgressionData> {
+    return this.enqueueMutation(async () => {
+    const data = await this.readNow();
+    const current = data.projects[projectId];
+    if (!current) throw new Error('The project is not assigned to this village');
+    data.projects[projectId] = { ...current, ...update };
+    await this.write(data);
+    return data;
+    });
+  }
+
+  private enqueueMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.mutationTail.then(operation, operation);
+    this.mutationTail = result.then(() => undefined, () => undefined);
+    return result;
   }
 }
 
@@ -97,9 +170,18 @@ export function validateProgression(value: unknown): value is ProgressionData {
   if (!candidate.lots.every((lot, index) => validateLot(lot, index))) return false;
   return Object.entries(candidate.projects).every(([id, project]) =>
     project?.projectId === id && Number.isInteger(project.level) && project.level >= 0 &&
+    (project.repositoryPath === undefined || typeof project.repositoryPath === 'string') &&
+    (project.repositoryName === undefined || typeof project.repositoryName === 'string') &&
+    (project.isDemo === undefined || typeof project.isDemo === 'boolean') &&
     Number.isInteger(project.completedSessions) && project.completedSessions >= 0 &&
     (project.lastCompletedAt === null || typeof project.lastCompletedAt === 'string') &&
-    (project.lastDebrief === null || validateDebrief(project.lastDebrief)),
+    (project.lastDebrief === null || validateDebrief(project.lastDebrief)) &&
+    (project.lastThreadId === undefined || project.lastThreadId === null || typeof project.lastThreadId === 'string') &&
+    (project.conversationStatus === undefined || ['idle', 'waiting', 'needs_review', 'external'].includes(project.conversationStatus)) &&
+    (project.pendingInput === undefined || project.pendingInput === null || validatePendingInput(project.pendingInput)) &&
+    (project.handoffAt === undefined || project.handoffAt === null || typeof project.handoffAt === 'string') &&
+    Number.isInteger(project.safeEventCount ?? 0) && (project.safeEventCount ?? 0) >= 0 &&
+    (project.lastTurnStartedAt === undefined || project.lastTurnStartedAt === null || typeof project.lastTurnStartedAt === 'string')
   );
 }
 
@@ -114,9 +196,32 @@ function migrateProgression(value: ProgressionV1): ProgressionData {
   for (const [index, [path, prior]] of Object.entries(value.projects).slice(0, 5).entries()) {
     const projectId = randomUUID();
     data.lots[index] = { slot: index as VillageLot['slot'], projectId, path, name: path.split(/[\\/]/).filter(Boolean).at(-1) ?? 'Migrated project', isDemo: false };
-    data.projects[projectId] = { projectId, ...prior, lastDebrief: null };
+    data.projects[projectId] = { projectId, repositoryPath: path, repositoryName: data.lots[index].name!, isDemo: false, ...prior, lastDebrief: null, lastThreadId: null, conversationStatus: 'idle', pendingInput: null, handoffAt: null, safeEventCount: 0, lastTurnStartedAt: null };
   }
   return data;
+}
+
+function normalizeProgression(data: ProgressionData, restoreInterruptedNative = false): { data: ProgressionData; changed: boolean } {
+  let changed = false;
+  const normalized = structuredClone(data);
+  for (const project of Object.values(normalized.projects)) {
+    const lot = normalized.lots.find((candidate) => candidate.projectId === project.projectId);
+    if (typeof project.repositoryPath !== 'string') { project.repositoryPath = lot?.path ?? ''; changed = true; }
+    if (typeof project.repositoryName !== 'string') { project.repositoryName = lot?.name ?? 'Saved project'; changed = true; }
+    if (typeof project.isDemo !== 'boolean') { project.isDemo = lot?.isDemo ?? false; changed = true; }
+    if (project.lastThreadId === undefined) { project.lastThreadId = null; changed = true; }
+    if (project.conversationStatus === undefined) { project.conversationStatus = 'idle'; changed = true; }
+    if (project.pendingInput === undefined) { project.pendingInput = null; changed = true; }
+    if (project.handoffAt === undefined) { project.handoffAt = null; changed = true; }
+    if (project.safeEventCount === undefined) { project.safeEventCount = 0; changed = true; }
+    if (project.lastTurnStartedAt === undefined) { project.lastTurnStartedAt = null; changed = true; }
+    if (restoreInterruptedNative && project.pendingInput?.source === 'native') {
+      project.pendingInput = resumablePendingInput();
+      project.conversationStatus = 'waiting';
+      changed = true;
+    }
+  }
+  return { data: normalized, changed };
 }
 
 function validateLot(lot: VillageLot, index: number): boolean {
@@ -127,4 +232,11 @@ function validateLot(lot: VillageLot, index: number): boolean {
 
 function validateDebrief(value: CompletionDebrief): boolean {
   return typeof value.landed === 'string' && value.landed.length <= 96 && typeof value.followUp === 'string' && value.followUp.length <= 96 && typeof value.followUpRecommended === 'boolean';
+}
+
+function validatePendingInput(value: SafePendingInput): boolean {
+  return Boolean(value && ['native', 'terminal', 'resumable'].includes(value.source) && typeof value.title === 'string' && value.title.length <= 80 &&
+    Array.isArray(value.questions) && value.questions.length > 0 && value.questions.length <= 3 && value.questions.every((question) =>
+      question && typeof question.id === 'string' && typeof question.header === 'string' && typeof question.question === 'string' &&
+      typeof question.isSecret === 'boolean' && Array.isArray(question.choices) && question.choices.every((choice) => typeof choice === 'string')));
 }

@@ -6,6 +6,24 @@ export interface CompletionDebrief {
   followUpRecommended: boolean;
 }
 
+export interface SafeInputQuestion {
+  id: string;
+  header: string;
+  question: string;
+  isSecret: boolean;
+  choices: string[];
+}
+
+export interface SafePendingInput {
+  source: 'native' | 'terminal' | 'resumable';
+  title: string;
+  questions: SafeInputQuestion[];
+}
+
+export type CodevilleResult =
+  | { status: 'completed'; debrief: CompletionDebrief }
+  | { status: 'waiting_for_input'; pendingInput: SafePendingInput };
+
 export type VillageEvent =
   | { type: 'session_started'; at: string; model: string }
   | { type: 'planning'; at: string }
@@ -13,9 +31,13 @@ export type VillageEvent =
   | { type: 'editing'; at: string; quantity?: number }
   | { type: 'running_command'; at: string; category: CommandCategory }
   | { type: 'approval_required'; at: string; requestId: string; category: 'command' | 'file_change' | 'permissions' }
+  | { type: 'input_required'; at: string; input: SafePendingInput }
+  | { type: 'input_resolved'; at: string }
   | { type: 'tests_passed'; at: string }
   | { type: 'tests_failed'; at: string }
   | { type: 'session_completed'; at: string; debrief: CompletionDebrief }
+  | { type: 'session_needs_review'; at: string }
+  | { type: 'session_external'; at: string }
   | { type: 'session_failed'; at: string; recoverable: boolean }
   | { type: 'session_interrupted'; at: string };
 
@@ -43,6 +65,41 @@ export interface EnvironmentStatus {
   platform: NodeJS.Platform;
 }
 
+export interface ConnectionProof {
+  connected: boolean;
+  appServerPid: number | null;
+  codexVersion: string | null;
+  model: string;
+  repositoryName: string;
+  repositoryPath: string;
+  threadId: string | null;
+  activeTurnId: string | null;
+  safeEventCount: number;
+  connectedAt: string | null;
+  turnStartedAt: string | null;
+}
+
+export interface PendingInputView extends SafePendingInput {
+  requestId: string | null;
+  projectId: string;
+}
+
+export interface InputRequestUpdate {
+  projectId: string;
+  request: PendingInputView | null;
+}
+
+export interface InputResponse {
+  questionId: string;
+  answers: string[];
+}
+
+export interface HandoffResult {
+  launched: boolean;
+  command: string;
+  message: string;
+}
+
 export interface VillageLot {
   slot: 0 | 1 | 2 | 3 | 4;
   projectId: string | null;
@@ -53,10 +110,19 @@ export interface VillageLot {
 
 export interface ProjectProgress {
   projectId: string;
+  repositoryPath: string;
+  repositoryName: string;
+  isDemo: boolean;
   level: number;
   completedSessions: number;
   lastCompletedAt: string | null;
   lastDebrief: CompletionDebrief | null;
+  lastThreadId: string | null;
+  conversationStatus: 'idle' | 'waiting' | 'needs_review' | 'external';
+  pendingInput: SafePendingInput | null;
+  handoffAt: string | null;
+  safeEventCount: number;
+  lastTurnStartedAt: string | null;
 }
 
 export interface ProgressionData {
@@ -86,6 +152,13 @@ export interface StartSessionResult {
   model: string;
 }
 
+export interface BatchLaunchProject {
+  projectId: string;
+  projectPath: string;
+  projectName: string;
+  task: string;
+}
+
 export interface CodevilleBridge {
   getEnvironment(): Promise<EnvironmentStatus>;
   selectProject(slot: VillageLot['slot']): Promise<ProjectSelection | null>;
@@ -93,10 +166,16 @@ export interface CodevilleBridge {
   startSession(input: StartSessionInput): Promise<StartSessionResult>;
   interruptSession(projectId: string): Promise<void>;
   respondToApproval(requestId: string, decision: ApprovalDecision): Promise<void>;
+  respondToInput(projectId: string, requestId: string | null, answers: InputResponse[]): Promise<void>;
+  continueSession(projectId: string, reply: string): Promise<StartSessionResult>;
+  getConnectionProof(projectId: string): Promise<ConnectionProof>;
+  handoffToGhostty(projectId: string): Promise<HandoffResult>;
+  reclaimFromGhostty(projectId: string): Promise<void>;
   getProgression(): Promise<ProgressionData>;
   resetProgression(): Promise<ProgressionData>;
   onVillageEvent(listener: (event: ProjectVillageEvent) => void): () => void;
   onApprovalRequest(listener: (request: ApprovalRequestView | null) => void): () => void;
+  onInputRequest(listener: (update: InputRequestUpdate) => void): () => void;
 }
 
 declare global {

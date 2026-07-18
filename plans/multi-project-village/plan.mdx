@@ -41,7 +41,7 @@ The visible animation stays truthful: every builder transition comes from that p
 
 The village has exactly five lot slots for the hackathon release. A slot can be empty, idle, active, waiting for approval, completed, failed, or interrupted. All five lots remain visible; selection changes the right-hand Foreman's Desk, not the map. This gives the product a stable spatial memory: Acorn Tasks is always on the same lot, even while another project is selected.
 
-The one-click demo provisions five safe copies of the existing fixture with distinct names. Each copy is a real repository and can start a real Codex thread. A **Start all builders** control is available only for the disposable demo village; real repositories start individually so the user never accidentally launches work across several projects.
+The one-click demo provisions five safe copies of the existing fixture with distinct names. Each copy is a real repository and can start a real Codex thread. User-owned repositories can fill any lot and start individually. Checkboxes on real-project cards feed a visually distinct **Start selected builders** control; it opens a prominent exact name/path/task preflight, and cancellation launches nothing. The disposable **Start all builders** action remains visually separate and now uses the same confirmation gate.
 
 <Table
   id="demo-projects"
@@ -62,7 +62,7 @@ The agent's last visible action is a small speech bubble anchored above its buil
 - **Landed:** a plain-language outcome, for example “Health summary is working and all checks pass.”
 - **Follow-up:** either one recommended next step or “No follow-up recommended.”
 
-The same content appears in the selected project's panel and persists locally. The Codex thread receives a developer instruction to append a machine-readable `CODEVILLE_DEBRIEF` object to its final answer. The main process parses only that object, validates two bounded strings, applies a deny-list/shape sanitizer, and falls back to a generic verified outcome when the marker is absent or unsafe. Raw agent prose never reaches the renderer.
+The same content appears in the selected project's panel and persists locally. The Codex thread receives a developer instruction to append a discriminated machine-readable `CODEVILLE_RESULT` object. The main process validates either a completed debrief or a bounded waiting question. Missing or unsafe markers become `needs_review`, never verified success. Raw agent prose never reaches the renderer and is discarded immediately after parsing.
 
 <Callout id="debrief-decision" tone="decision">
 
@@ -130,7 +130,7 @@ The single `AppServerClient` remains the transport owner. JSON-RPC request corre
 
 <Callout id="debrief-runtime-proof" tone="success">
 
-**Debrief protocol proof:** a real `gpt-5.6-sol` thread followed the proposed `developerInstructions` and emitted the exact `CODEVILLE_DEBRIEF` object in an `item/completed` agent message. Its terminal `turn/completed` notification carried `itemsView: notLoaded` and zero items. Codeville must therefore retain only the latest private agent-message text per active thread, parse it at completion, emit the sanitized object, and immediately discard the raw accumulator.
+**Result protocol proof:** Codeville retains only the latest private agent-message text per active thread, parses the required `CODEVILLE_RESULT` at terminal completion, emits only its sanitized projection, and immediately discards the raw accumulator. Deterministic protocol coverage proves validated completion, terminal waiting, malformed-result review, and same-thread continuation.
 
 </Callout>
 
@@ -204,6 +204,9 @@ Progression data migrates from version 1 to version 2 rather than resetting exis
       name: "ProjectProgress",
       fields: [
         { name: "projectId", type: "string", pk: true },
+        { name: "repositoryPath", type: "local string" },
+        { name: "repositoryName", type: "local string" },
+        { name: "isDemo", type: "boolean" },
         { name: "level", type: "integer" },
         { name: "completedSessions", type: "integer" },
         { name: "lastCompletedAt", type: "ISO string", nullable: true },
@@ -216,7 +219,7 @@ Progression data migrates from version 1 to version 2 rather than resetting exis
   ]}
 />
 
-Project task text is never persisted. Paths and names remain local in the mode-`0600` atomic store. Project ids are opaque local UUIDs and never derived from or reversible to a filesystem path. The migration creates one UUID for each version 1 path key, assigns the first migrated project to lot 01, preserves every prior progression record, and leaves remaining lot slots empty.
+Project task text is never persisted; per-project drafts live only in renderer memory and disappear at relaunch. Paths and names remain local in the mode-`0600` atomic store. Project ids are opaque local UUIDs and never derived from or reversible to a filesystem path. Project records retain repository metadata even when displaced from a lot, so reopening the same path restores identity, progression, and safe debrief. The migration creates one UUID for each version 1 path key, assigns migrated projects to available lots, preserves every prior progression record, and leaves remaining lot slots empty.
 
 ## Implementation map
 
@@ -249,8 +252,8 @@ Project task text is never persisted. Paths and names remain local in the mode-`
 
 1. **Lock contracts first.** Add the version 2 village schema, v1 migration, `ProjectVillageEvent`, `CompletionDebrief`, and pure tests. No renderer or protocol code moves until privacy and migration invariants pass.
 2. **Route real concurrency.** Replace singleton session ownership in `electron/main.ts`, include `projectId` in every renderer envelope, make interrupt/approval project-scoped, and prove interleaved notifications cannot cross projects.
-3. **Create the five-project demo.** Provision five fixture copies and persist their lot assignments. Add individual start plus demo-only **Start all builders** with clear confirmation copy.
-4. **Build completion debriefs.** Add developer instructions, parse the final turn's marker, sanitize locally, persist safe output, and test malicious/path/code-shaped payloads plus missing markers.
+3. **Create the five-project demo and real-project launch surface.** Provision five fixture copies, persist real/demo assignments, add individual start, selectable real-project subsets, and exact confirmation for every aggregate launch.
+4. **Build discriminated results and interaction.** Parse completed/waiting results, route native input, sanitize and persist only safe projections, retain saved thread identity, and test malicious/path/code/secret/oversized payloads plus missing markers.
 5. **Replace the game runtime.** Split scene, lot, and actor ownership. Mount Pixi once, update via controller, add phase queues and spring movement, and render anchored debrief bubbles.
 6. **Recompose the desktop shell.** Keep the present brand/topbar, expand the stage to the five-lot ward, add the project rail and selected-project desk, and preserve readable state at the 1080 px minimum width.
 7. **Prove gameplay.** Add a canvas identity regression, deterministic scheduler tests, fake-clock actor motion assertions, five-stream renderer tests, and screenshot/animation sampling for overlap and visual continuity.
@@ -270,6 +273,9 @@ Project task text is never persisted. Paths and names remain local in the mode-`
     { id: "motion", label: "Pure scheduler tests enforce dedupe, dwell, terminal priority, and queue bounds; persistent-canvas E2E prevents actor resets" },
     { id: "privacy", label: "Adversarial debrief fixtures containing paths, URLs, commands, code identifiers, and secret-shaped values fall back safely" },
     { id: "relaunch", label: "Relaunch restores five lot assignments, five levels, and safe last debriefs but no in-flight task text or process state" },
+    { id: "real-assignment", label: "An existing Git repository can fill any lot and recover its UUID/progression after displacement and reopening" },
+    { id: "batch-confirmation", label: "A selected real-project subset shows exact paths/tasks and launches nothing until confirmation" },
+    { id: "real-e2e-opt-in", label: "User working trees are touched only when CODEVILLE_REAL_E2E_CONFIG explicitly names paths and tasks" },
     { id: "responsive", label: "Packaged 1540×960 visual proof shows all five lots, bubbles, project rail, and selected desk without overlap; CSS preserves the 1080×700 minimum shell" },
     { id: "package", label: "Final branded Apple-silicon package passes the same real-session path with no development server" },
   ]}
@@ -280,6 +286,7 @@ Project task text is never persisted. Paths and names remain local in the mode-`
 - **Bursting protocol events:** phase queues coalesce only visually; the safe activity timeline still records every meaningful event.
 - **Five-session resource pressure:** one app-server owns all threads; start failures remain isolated per project and never cancel siblings.
 - **Completion ordering:** the latest completed agent-message item is retained privately by thread, parsed when terminal completion arrives, then discarded before the safe event is emitted.
+- **Interaction and ownership:** native input continues the active turn; terminal input resumes the same saved thread; post-turn Ghostty handoff is exclusive and explicitly reclaimed. Connection proof remains metadata-only.
 - **Speech-bubble overlap:** each bubble is anchored inside a lot-specific lane with a fixed width and bounded text; the five-lot visual proof shows simultaneous bubbles without overlap.
 - **Unsafe model summary:** marker content is untrusted and deny-by-default. Generic outcome/follow-up text is better than leaking a filename.
 - **Demo duration:** the video starts multiple builders, follows one to completion, and uses the other active lots to prove concurrency without waiting for all five on camera.

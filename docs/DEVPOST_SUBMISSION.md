@@ -34,7 +34,7 @@ Human decisions established the product boundary: a native local tool instead of
 
 ## Testing instructions
 
-Apple-silicon Mac plus authenticated Codex CLI with `gpt-5.6-sol` access. Unzip and Control-click **Codeville.app → Open** if Gatekeeper warns. Click **Create demo village**, then **Start all builders**. Confirm five project cards complete and display debriefs. Quit/reopen and select Acorn Tasks to verify level 1 persists. Full details are in `docs/JUDGE_TESTING.md`.
+Apple-silicon Mac plus authenticated Codex CLI with `gpt-5.6-sol` access. Unzip and Control-click **Codeville.app → Open** if Gatekeeper warns. Click **Create demo village**, then **Start all builders**; review the exact preflight and confirm. Confirm five project cards complete and display debriefs. Quit/reopen and select Acorn Tasks to verify level 1 persists. Full details are in `docs/JUDGE_TESTING.md`.
 
 ## Links to add
 

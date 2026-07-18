@@ -19,7 +19,12 @@ Source of truth: [challenge overview](https://openai.devpost.com/), [FAQ](https:
 - [x] Installation instructions and supported platforms documented.
 - [x] Privacy, sandbox, and approval behavior documented.
 - [x] Automated unit, production-build, and real-session acceptance proof.
+- [x] Deterministic native-input, terminal-waiting, same-thread continuation, sibling-routing, relaunch, Ghostty handoff, and reclaim proof.
+- [x] Missing/malformed results enter needs-review and never increment progression.
+- [x] Metadata-only Codex connection proof excludes raw agent content.
 - [x] Persistent progression verified across app relaunch.
+- [x] User-owned repositories can fill any lot, recover opaque identity/progression after reopening, and launch only individually or through an exact confirmed subset preflight.
+- [x] Normal E2E cannot mutate user repositories; real working-tree proof requires explicit `CODEVILLE_REAL_E2E_CONFIG` authorization.
 - [x] Produce final unsigned macOS `.app` archive with recorded SHA-256.
 - [ ] Upload the archive to a stable, no-login release URL or Devpost attachment.
 - [ ] Test the downloaded archive on a clean Apple-silicon macOS account before submission.
@@ -68,6 +73,7 @@ Source of truth: [challenge overview](https://openai.devpost.com/), [FAQ](https:
 ## Quality against judging criteria
 
 - [x] **Technological implementation:** one real app-server multiplexes five GPT-5.6 threads with scoped events/approvals, sanitized debriefs, migration, persistence, and real packaged proof.
+- [x] **Safety:** repository assignment performs no Git mutation, task drafts are memory-only, batch execution is confirmation-gated, and real E2E is opt-in.
 - [x] **Design:** coherent native five-workshop experience, stable spatial memory, smooth persistent scene, accessible outcomes, judge-ready fixture.
 - [x] **Potential impact:** makes parallel agent work legible without constant log reading or private implementation exposure.
 - [x] **Idea quality:** concurrent agent activity becomes a persistent spatial world with outcomes rather than another terminal/dashboard wrapper.

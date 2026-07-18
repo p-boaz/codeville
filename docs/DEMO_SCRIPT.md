@@ -16,7 +16,7 @@ Target: 2:35–2:50, public YouTube, clear spoken audio. Record at 1920×1080 wi
 
 ## 0:42–1:30 — Five live agents
 
-**Visual:** Click **Start all builders**. Move between project cards as their states diverge; show two or three builders in different stations. If an approval appears, show it briefly.
+**Visual:** Click **Start all builders**, show the exact confirmation preflight, and confirm. Move between project cards as their states diverge; show two or three builders in different stations. If an approval appears, show it briefly.
 
 **Voice:** “One app-server connection now runs five independent GPT-5.6 Codex threads. Every notification is routed back to its project. Planning, reading, editing, testing, and approvals drive independent builders in real time. The Pixi scene stays mounted, while per-builder queues and spring motion turn bursty protocol events into smooth, truthful choreography.”
 

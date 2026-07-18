@@ -1,6 +1,6 @@
 # Codeville
 
-Codeville is a living desktop command center for Codex. Five local repositories become five workshops, each with its own real builder, activity state, approval boundary, progression, and completion debrief. You can understand what several agents are doing—and where they landed—without reading five log streams or exposing private code to the visual layer.
+Codeville is a living desktop command center for Codex. Five local repositories become five workshops, each with its own real builder, activity state, approval and input boundaries, saved conversation, progression, and completion debrief. You can understand what several agents are doing—and where they landed—without reading five log streams or exposing private code to the visual layer.
 
 This is a Developer Tools entry for OpenAI Build Week 2026.
 
@@ -12,11 +12,13 @@ The fastest path requires no repository setup or rebuild:
 2. Open the provided Apple-silicon macOS `Codeville.app` test build.
 3. Confirm the header shows `gpt-5.6-sol` and a Codex version.
 4. Click **Create demo village**. Codeville creates five isolated copies of the bundled four-test fixture.
-5. Click **Start all builders** to launch five real Codex threads, or select one workshop and click **Start building**.
-6. Watch every builder independently plan, read, edit, test, and complete. Each completion produces a safe speech bubble explaining what landed and whether follow-up is recommended.
+5. Click **Start all builders**, review the exact five-repository preflight, and confirm to launch five real Codex threads—or select one workshop and click **Start building**.
+6. Answer native Codex questions or a builder's structured stopped-turn question at the Foreman's Desk. Waiting never advances progression and sibling builders continue independently.
+7. Watch validated completions produce a safe speech bubble explaining what landed and whether follow-up is recommended. Missing or malformed result markers become **Needs review**.
+8. Expand **Codex connection proof** for metadata-only runtime evidence. After a turn stops, optionally hand the saved thread to Ghostty and explicitly reclaim it after closing the CLI session.
 7. Quit and reopen Codeville. The five lots, workshop levels, and safe debriefs remain.
 
-The demo modifies only disposable repositories under Codeville's app-data directory. Choosing a real repository is optional.
+The demo modifies only disposable repositories under Codeville's app-data directory. To use your own repositories, select an empty lot, choose an existing Git repository, enter that project's task, and start it individually—or check several real-project cards and use **Start selected builders**. Codeville shows an explicit name/path/task preflight and starts nothing until you confirm.
 
 ## Supported platform
 
@@ -36,14 +38,20 @@ pnpm dev
 Verification and packaging:
 
 ```sh
-pnpm check                                   # typecheck, lint, 26 tests, production build
-pnpm test:e2e                                # two concurrent real Codex projects by default
+pnpm check                                   # typecheck, lint, 37 tests, production build
+pnpm test:e2e                                # safe assignment proof + two disposable real Codex projects
 CODEVILLE_E2E_PROJECT_COUNT=5 pnpm test:e2e # five-project release gate
 pnpm package:mac                             # unsigned release/mac-arm64/Codeville.app
 CODEVILLE_E2E_PROJECT_COUNT=5 pnpm test:packaged
 ```
 
 The real-session tests consume Codex usage. They create temporary app data and isolated copies of `fixtures/demo-repo`.
+
+Normal E2E never launches Codex against user repositories. The opt-in real-repository gate requires an explicit JSON payload; supplying it authorizes the listed tasks to modify those working trees through Codex:
+
+```sh
+CODEVILLE_REAL_E2E_CONFIG='[{"path":"/Users/me/Projects/graphletter","task":"Run the approved graphletter task"},{"path":"/Users/me/Projects/kalshi-mlb","task":"Run the approved kalshi task"}]' pnpm test:e2e
+```
 
 ## Architecture
 
@@ -56,13 +64,15 @@ Electron main process ── one JSONL stdio connection ── Codex app-server
        │                         ├── thread 2 → project 2
        │                         └── ... up to five live threads
        ├── thread/project registry + deterministic approval queue
-       ├── privacy translator + completion debrief sanitizer
-       └── atomic v2 store: five lots, levels, safe debriefs
+       ├── privacy translator + discriminated result sanitizer
+       └── atomic v2 store: assignments, opaque identities, levels, safe debriefs
 ```
 
 One initialized app-server connection multiplexes all project threads. Every renderer event carries an app-owned opaque `projectId`, so interleaved notifications and approval requests remain attached to the correct workshop. Each builder owns its own visual phase queue and spring motion. PixiJS mounts once; project updates never replace the canvas or reset actors.
 
 The renderer receives only coarse activity events and validated `CompletionDebrief` objects. It never receives prompts, code, diffs, command output, or raw final messages through the village channel. Debrief strings are length-bounded and reject paths, URLs, emails, shell/code syntax, identifiers, and common secret shapes. Exact commands and working directories appear only in the local approval dialog when a user decision is required.
+
+Task drafts are intentionally memory-only: they are project-scoped while Codeville is open and cleared at relaunch. Repository paths/names, opaque UUIDs, detached progression, and safe debriefs persist locally with mode `0600`, so removing and later reopening a repository restores its existing identity and progress.
 
 See [privacy](docs/PRIVACY.md), [judge testing](docs/JUDGE_TESTING.md), and the full [PRD](docs/PRD.md). The approved multi-project implementation plan is in [plans/multi-project-village](plans/multi-project-village/plan.mdx).
 
@@ -82,6 +92,9 @@ Human product decisions set the boundaries: native desktop instead of a browser 
 
 - `electron/` — secure shell, concurrent Codex routing, approval queue, protocol bindings, v2 persistence
 - `src/codex/` — privacy-safe event translation and completion debrief sanitizer
+- `electron/input-request.ts` — native multi-question projection and generated response shaping
+
+Codex turns must end with one discriminated `CODEVILLE_RESULT` marker. Only `status: "completed"` with a valid sanitized debrief increments progression. `status: "waiting_for_input"` retains the saved thread for a same-thread reply. A terminal turn without either valid result enters `needs_review`.
 - `src/game/` — persistent five-lot PixiJS scene and independent spring-driven actors
 - `src/state/` — deterministic session and visual phase reducers
 - `fixtures/demo-repo/` — disposable four-test fixture copied into five repositories

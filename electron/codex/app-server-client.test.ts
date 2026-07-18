@@ -11,4 +11,12 @@ describe('AppServerClient protocol contract', () => {
     expect(new PassThrough()).toBeInstanceOf(PassThrough);
     expect(vi.isMockFunction(module.AppServerClient)).toBe(false);
   });
+
+  it('resumes the same thread with unchanged sandbox, approval, model, cwd, and instructions', async () => {
+    const { buildThreadResumeParams, buildThreadStartParams } = await import('./app-server-client');
+    const started = buildThreadStartParams('/repo/acorn', 'gpt-5.6-sol');
+    const resumed = buildThreadResumeParams('thread-opaque', '/repo/acorn', 'gpt-5.6-sol');
+    expect(resumed).toMatchObject({ threadId: 'thread-opaque', cwd: started.cwd, model: started.model, sandbox: started.sandbox, approvalPolicy: started.approvalPolicy, developerInstructions: started.developerInstructions });
+    expect(resumed).not.toHaveProperty('ephemeral');
+  });
 });

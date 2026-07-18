@@ -1,16 +1,17 @@
-import { execFile } from 'node:child_process';
-import { access, cp, mkdir, rm } from 'node:fs/promises';
+import { execFile, spawn } from 'node:child_process';
+import { access, cp, mkdir, rm, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { promisify } from 'node:util';
 
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain } from 'electron';
 
-import { parseCompletionDebrief } from '../src/codex/debrief';
+import { parseCodevilleResult } from '../src/codex/debrief';
 import { translateCodexMessage } from '../src/codex/translator';
 import type {
   ApprovalDecision,
-  ApprovalRequestView,
   EnvironmentStatus,
+  InputResponse,
+  PendingInputView,
   ProjectSelection,
   StartSessionInput,
   VillageLot,
@@ -18,8 +19,11 @@ import type {
 import type { ServerNotification } from './codex/generated/ServerNotification';
 import type { ServerRequest } from './codex/generated/ServerRequest';
 import { AppServerClient } from './codex/app-server-client';
+import { approvalView } from './approval-request';
+import { inputRequestView, inputResponse } from './input-request';
 import { resolveCodexBinary } from './codex/resolve-binary';
 import { ProgressionStore } from './progression-store';
+import { ProjectRuntimeRegistry, type ProjectRuntime } from './project-runtime-registry';
 
 const executeFile = promisify(execFile);
 const model = 'gpt-5.6-sol';
@@ -29,21 +33,15 @@ const demoNames = ['Acorn Tasks', 'Lantern API', 'Mossy Docs', 'Pine Tests', 'Wi
 
 if (process.env.CODEVILLE_USER_DATA_DIR) app.setPath('userData', process.env.CODEVILLE_USER_DATA_DIR);
 
-interface ProjectRuntime {
-  projectId: string;
-  threadId: string;
-  turnId: string | null;
-  lastAgentMessage: string | null;
-}
-
 let window: BrowserWindow | null = null;
 let client: AppServerClient | null = null;
 let store: ProgressionStore;
-const sessionsByThreadId = new Map<string, ProjectRuntime>();
-const threadIdByProjectId = new Map<string, string>();
+const runtimes = new ProjectRuntimeRegistry();
 const pendingApprovals = new Map<string, { request: ServerRequest; projectId: string }>();
+const pendingInputs = new Map<string, { request: Extract<ServerRequest, { method: 'item/tool/requestUserInput' }>; view: PendingInputView }>();
 const approvalQueue: string[] = [];
 let visibleApprovalId: string | null = null;
+let environmentCache: EnvironmentStatus | null = null;
 
 function createWindow(): void {
   window = new BrowserWindow({
@@ -61,13 +59,14 @@ function createWindow(): void {
 }
 
 async function getEnvironment(): Promise<EnvironmentStatus> {
+  if (environmentCache) return environmentCache;
   const codexBinary = resolveCodexBinary();
-  if (!codexBinary) return { codexAvailable: false, codexVersion: null, model, platform: process.platform };
+  if (!codexBinary) return environmentCache = { codexAvailable: false, codexVersion: null, model, platform: process.platform };
   try {
     const { stdout } = await executeFile(codexBinary, ['--version'], { timeout: 5_000 });
-    return { codexAvailable: true, codexVersion: stdout.trim(), model, platform: process.platform };
+    return environmentCache = { codexAvailable: true, codexVersion: stdout.trim(), model, platform: process.platform };
   } catch {
-    return { codexAvailable: false, codexVersion: null, model, platform: process.platform };
+    return environmentCache = { codexAvailable: false, codexVersion: null, model, platform: process.platform };
   }
 }
 
@@ -79,20 +78,40 @@ function messageThreadId(message: ServerNotification | ServerRequest): string | 
 function sendVillageEvents(notification: ServerNotification): void {
   const threadId = messageThreadId(notification);
   if (!threadId) return;
-  const runtime = sessionsByThreadId.get(threadId);
+  const runtime = runtimes.forThread(threadId);
   if (!runtime) return;
+  if (notification.method === 'turn/completed' && !runtime.turnId) return;
+  if (notification.method === 'serverRequest/resolved') {
+    resolveServerRequest(String(notification.params.requestId));
+  }
   if (notification.method === 'item/completed' && notification.params.item.type === 'agentMessage') {
     runtime.lastAgentMessage = notification.params.item.text;
   }
-  const completionDebrief = notification.method === 'turn/completed'
-    ? parseCompletionDebrief(runtime.lastAgentMessage)
+  const completionResult = notification.method === 'turn/completed'
+    ? parseCodevilleResult(runtime.lastAgentMessage)
     : undefined;
-  const events = translateCodexMessage(notification, { model, completionDebrief });
+  if (notification.method === 'turn/completed') runtime.lastAgentMessage = null;
+  const events = translateCodexMessage(notification, { model, completionResult });
   for (const event of events) {
+    runtime.safeEventCount += 1;
     if (event.type === 'session_completed') {
-      cleanupRuntime(runtime);
-      void store.recordCompletion(runtime.projectId, event.at, event.debrief).then(() => {
+      runtime.turnId = null;
+      void store.recordCompletion(runtime.projectId, event.at, event.debrief, runtime.safeEventCount, runtime.turnStartedAt).then(() => {
         window?.webContents.send('village:event', { projectId: runtime.projectId, event });
+        cleanupRuntime(runtime);
+      });
+    } else if (event.type === 'input_required' && notification.method === 'turn/completed') {
+      runtime.turnId = null;
+      const view: PendingInputView = { ...event.input, requestId: null, projectId: runtime.projectId };
+      void store.recordWaiting(runtime.projectId, runtime.threadId, event.input, runtime.safeEventCount, runtime.turnStartedAt).then(() => {
+        window?.webContents.send('input:request', { projectId: runtime.projectId, request: view });
+        window?.webContents.send('village:event', { projectId: runtime.projectId, event });
+      });
+    } else if (event.type === 'session_needs_review') {
+      runtime.turnId = null;
+      void store.recordNeedsReview(runtime.projectId, runtime.threadId, runtime.safeEventCount, runtime.turnStartedAt).then(() => {
+        window?.webContents.send('village:event', { projectId: runtime.projectId, event });
+        cleanupRuntime(runtime);
       });
     } else {
       window?.webContents.send('village:event', { projectId: runtime.projectId, event });
@@ -102,16 +121,24 @@ function sendVillageEvents(notification: ServerNotification): void {
 }
 
 function cleanupRuntime(runtime: ProjectRuntime): void {
-  sessionsByThreadId.delete(runtime.threadId);
-  threadIdByProjectId.delete(runtime.projectId);
-  runtime.lastAgentMessage = null;
+  runtimes.remove(runtime);
 }
 
 function handleServerRequest(request: ServerRequest): void {
   const threadId = messageThreadId(request);
-  const runtime = threadId ? sessionsByThreadId.get(threadId) : undefined;
+  const runtime = threadId ? runtimes.forThread(threadId) : undefined;
   if (!runtime) {
     client?.respond(request.id, { decision: 'cancel' });
+    return;
+  }
+  if (request.method === 'item/tool/requestUserInput') {
+    const view = inputRequestView(request, runtime.projectId);
+    pendingInputs.set(String(request.id), { request, view });
+    runtime.safeEventCount += 1;
+    const event = { type: 'input_required' as const, at: new Date().toISOString(), input: { source: view.source, title: view.title, questions: view.questions } };
+    void store.recordWaiting(runtime.projectId, runtime.threadId, event.input, runtime.safeEventCount, runtime.turnStartedAt);
+    window?.webContents.send('input:request', { projectId: runtime.projectId, request: view });
+    window?.webContents.send('village:event', { projectId: runtime.projectId, event });
     return;
   }
   const requestId = String(request.id);
@@ -121,6 +148,18 @@ function handleServerRequest(request: ServerRequest): void {
     window?.webContents.send('village:event', { projectId: runtime.projectId, event });
   }
   showNextApproval();
+}
+
+function resolveServerRequest(requestId: string): void {
+  const input = pendingInputs.get(requestId);
+  if (input) {
+    pendingInputs.delete(requestId);
+    window?.webContents.send('input:request', { projectId: input.view.projectId, request: null });
+  }
+  if (pendingApprovals.delete(requestId)) {
+    if (visibleApprovalId === requestId) visibleApprovalId = null;
+    showNextApproval();
+  }
 }
 
 function showNextApproval(): void {
@@ -134,20 +173,6 @@ function showNextApproval(): void {
   if (!pending) return showNextApproval();
   visibleApprovalId = requestId;
   window?.webContents.send('approval:request', approvalView(pending.request, pending.projectId));
-}
-
-function approvalView(request: ServerRequest, projectId: string): ApprovalRequestView {
-  const base = { requestId: String(request.id), projectId };
-  switch (request.method) {
-    case 'item/commandExecution/requestApproval':
-      return { ...base, category: 'command', title: 'Codex wants to run a command', explanation: request.params.reason ?? 'Review the exact local command before allowing it.', command: request.params.command ?? undefined, cwd: request.params.cwd ?? undefined };
-    case 'item/fileChange/requestApproval':
-      return { ...base, category: 'file_change', title: 'Codex needs permission to change files', explanation: request.params.reason ?? 'Review this request before allowing the file change.' };
-    case 'item/permissions/requestApproval':
-      return { ...base, category: 'permissions', title: 'Codex requested additional permissions', explanation: request.params.reason ?? 'Review the requested local permission expansion.', cwd: request.params.cwd };
-    default:
-      throw new Error(`Unsupported interactive Codex request: ${request.method}`);
-  }
 }
 
 function respondToApproval(requestId: string, decision: ApprovalDecision): void {
@@ -169,6 +194,18 @@ function respondToApproval(requestId: string, decision: ApprovalDecision): void 
   pendingApprovals.delete(requestId);
   if (visibleApprovalId === requestId) visibleApprovalId = null;
   showNextApproval();
+}
+
+async function respondToInput(projectId: string, requestId: string | null, answers: InputResponse[]): Promise<void> {
+  if (!requestId) throw new Error('This stopped turn must be continued with a desk reply');
+  const pending = pendingInputs.get(requestId);
+  if (!pending || pending.view.projectId !== projectId || !client) throw new Error('This input request is no longer active');
+  const runtime = runtimes.forProject(projectId);
+  client.respond(pending.request.id, inputResponse(pending.request, answers));
+  pendingInputs.delete(requestId);
+  window?.webContents.send('input:request', { projectId, request: null });
+  if (runtime) await store.recordThread(projectId, runtime.threadId, runtime.turnStartedAt ?? new Date().toISOString(), runtime.safeEventCount);
+  window?.webContents.send('village:event', { projectId, event: { type: 'input_resolved', at: new Date().toISOString() } });
 }
 
 async function ensureClient(): Promise<AppServerClient> {
@@ -209,26 +246,29 @@ function registerIpc(): void {
     const result = await dialog.showOpenDialog(window!, { title: 'Choose a project for Codeville', properties: ['openDirectory'] });
     if (result.canceled || result.filePaths.length === 0) return null;
     const path = result.filePaths[0];
-    await access(path);
+    if (!(await stat(path)).isDirectory()) throw new Error('Choose a repository directory');
+    try { await access(join(path, '.git')); }
+    catch { throw new Error('Choose a Git repository. Codeville will not initialize or modify repository metadata.'); }
     return store.assignProject({ path, name: basename(path), slot, isDemo: false });
   });
   ipcMain.handle('project:demo-village', prepareDemoVillage);
   ipcMain.handle('progression:get', () => store.read());
   ipcMain.handle('progression:reset', () => store.reset());
   ipcMain.handle('session:start', async (_event, input: StartSessionInput) => {
-    if (threadIdByProjectId.has(input.projectId)) throw new Error('This project already has an active builder');
+    if (runtimes.hasProject(input.projectId)) throw new Error('This project already has an active builder');
     if (!input.projectPath || !input.task.trim()) throw new Error('Choose a project and enter a task');
     const lot = (await store.read()).lots.find((candidate) => candidate.projectId === input.projectId && candidate.path === input.projectPath);
     if (!lot) throw new Error('This project is not assigned to the village');
     await access(input.projectPath);
     const appServer = await ensureClient();
     const thread = await appServer.startThread(input.projectPath, model);
-    const runtime: ProjectRuntime = { projectId: input.projectId, threadId: thread.thread.id, turnId: null, lastAgentMessage: null };
-    sessionsByThreadId.set(runtime.threadId, runtime);
-    threadIdByProjectId.set(runtime.projectId, runtime.threadId);
+    const startedAt = new Date().toISOString();
+    const runtime: ProjectRuntime = { projectId: input.projectId, threadId: thread.thread.id, turnId: null, lastAgentMessage: null, safeEventCount: 0, turnStartedAt: startedAt };
+    runtimes.add(runtime);
     try {
       const turn = await appServer.startTurn(runtime.threadId, input.task.trim());
       runtime.turnId = turn.turn.id;
+      await store.recordThread(runtime.projectId, runtime.threadId, startedAt);
       return { threadId: runtime.threadId, turnId: turn.turn.id, model: thread.model };
     } catch (error) {
       cleanupRuntime(runtime);
@@ -236,12 +276,98 @@ function registerIpc(): void {
     }
   });
   ipcMain.handle('session:interrupt', async (_event, projectId: string) => {
-    const threadId = threadIdByProjectId.get(projectId);
-    const runtime = threadId ? sessionsByThreadId.get(threadId) : undefined;
+    const runtime = runtimes.forProject(projectId);
     if (!runtime?.turnId || !client) return;
     await client.interruptTurn(runtime.threadId, runtime.turnId);
   });
+  ipcMain.handle('session:continue', async (_event, projectId: string, reply: string) => {
+    if (!reply.trim()) throw new Error('Enter a reply before continuing');
+    const progress = (await store.read()).projects[projectId];
+    if (!progress || progress.conversationStatus !== 'waiting' || !progress.lastThreadId) throw new Error('This project is not waiting for a reply');
+    if (progress.pendingInput?.source === 'native') throw new Error('Answer the active Codex questions directly');
+    const appServer = await ensureClient();
+    let runtime = runtimes.forProject(projectId);
+    if (runtime?.turnId) throw new Error('This project already has an active turn');
+    if (!runtime) {
+      const resumed = await appServer.resumeThread(progress.lastThreadId, progress.repositoryPath, model);
+      runtime = { projectId, threadId: progress.lastThreadId, turnId: null, lastAgentMessage: null, safeEventCount: progress.safeEventCount, turnStartedAt: null };
+      runtimes.add(runtime);
+      if (resumed.thread.id !== progress.lastThreadId) throw new Error('Codex resumed an unexpected thread');
+    }
+    const startedAt = new Date().toISOString();
+    runtime.turnStartedAt = startedAt;
+    runtime.lastAgentMessage = null;
+    const turn = await appServer.startTurn(runtime.threadId, reply.trim());
+    runtime.turnId = turn.turn.id;
+    await store.recordThread(projectId, runtime.threadId, startedAt, runtime.safeEventCount);
+    window?.webContents.send('input:request', { projectId, request: null });
+    return { threadId: runtime.threadId, turnId: turn.turn.id, model };
+  });
   ipcMain.handle('approval:respond', (_event, requestId: string, decision: ApprovalDecision) => respondToApproval(requestId, decision));
+  ipcMain.handle('input:respond', (_event, projectId: string, requestId: string | null, answers: InputResponse[]) => respondToInput(projectId, requestId, answers));
+  ipcMain.handle('connection:proof', async (_event, projectId: string) => {
+    const progress = (await store.read()).projects[projectId];
+    if (!progress) throw new Error('This project is not assigned to the village');
+    const runtime = runtimes.forProject(projectId);
+    const environment = await getEnvironment();
+    return {
+      connected: client?.connected ?? false,
+      appServerPid: client?.pid ?? null,
+      codexVersion: environment.codexVersion,
+      model,
+      repositoryName: progress.repositoryName,
+      repositoryPath: progress.repositoryPath,
+      threadId: runtime?.threadId ?? progress.lastThreadId,
+      activeTurnId: runtime?.turnId ?? null,
+      safeEventCount: runtime?.safeEventCount ?? progress.safeEventCount,
+      connectedAt: client?.connectionStartedAt ?? null,
+      turnStartedAt: runtime?.turnStartedAt ?? progress.lastTurnStartedAt,
+    };
+  });
+  ipcMain.handle('session:handoff', async (_event, projectId: string) => {
+    const progress = (await store.read()).projects[projectId];
+    if (!progress?.lastThreadId) throw new Error('No saved Codex thread is available for this project');
+    const runtime = runtimes.forProject(projectId);
+    if (runtime?.turnId) throw new Error('Stop the active turn before handing it to Ghostty');
+    if (progress.conversationStatus === 'external') throw new Error('Ghostty already owns this conversation');
+    if (runtime && client) await client.unsubscribeThread(runtime.threadId);
+    if (runtime) cleanupRuntime(runtime);
+    const binary = resolveCodexBinary();
+    if (!binary) throw new Error('Codex CLI was not found');
+    const commandArgs = [binary, 'resume', progress.lastThreadId, '-C', progress.repositoryPath];
+    const command = commandArgs.map(shellQuote).join(' ');
+    const at = new Date().toISOString();
+    await store.recordExternal(projectId, at);
+    try {
+      const testLauncher = process.env.CODEVILLE_GHOSTTY_BINARY;
+      if (testLauncher) {
+        await access(testLauncher);
+        const child = spawn(testLauncher, commandArgs, { detached: true, stdio: 'ignore' });
+        child.unref();
+        return { launched: true, command, message: 'Ghostty now owns this Codex conversation.' };
+      }
+      await access('/Applications/Ghostty.app');
+      const child = spawn('/usr/bin/open', ['-na', 'Ghostty.app', '--args', '-e', ...commandArgs], { detached: true, stdio: 'ignore' });
+      child.unref();
+      return { launched: true, command, message: 'Ghostty now owns this Codex conversation.' };
+    } catch {
+      clipboard.writeText(command);
+      return { launched: false, command, message: 'Ghostty is unavailable. The exact resume command was copied.' };
+    }
+  });
+  ipcMain.handle('session:reclaim', async (_event, projectId: string) => {
+    const progress = (await store.read()).projects[projectId];
+    if (!progress?.lastThreadId || progress.conversationStatus !== 'external') throw new Error('This conversation is not owned by Ghostty');
+    if (runtimes.hasProject(projectId)) throw new Error('Codeville already owns this conversation');
+    const appServer = await ensureClient();
+    await appServer.resumeThread(progress.lastThreadId, progress.repositoryPath, model);
+    runtimes.add({ projectId, threadId: progress.lastThreadId, turnId: null, lastAgentMessage: null, safeEventCount: progress.safeEventCount, turnStartedAt: progress.lastTurnStartedAt });
+    await store.recordReclaimed(projectId);
+  });
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
 app.whenReady().then(() => { store = new ProgressionStore(app.getPath('userData')); registerIpc(); createWindow(); });
