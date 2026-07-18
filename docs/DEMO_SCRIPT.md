@@ -1,48 +1,48 @@
 # Demo video script
 
-Target: 2:35–2:50, public YouTube, clear spoken audio. Record at 1920×1080 with notifications hidden.
+Target: 2:35–2:55, public YouTube, clear spoken audio. Record at 1920×1080 with system notifications hidden (Codeville's own dock badge is fine to show).
 
-## 0:00–0:20 — Hook
+## 0:00–0:18 — Hook: wall mode
 
-**Visual:** Open on all five completed workshops and their speech bubbles.
+**Visual:** Cold open in **Wall mode** — five builders working, one raises its lantern, the signpost reads "1 builder needs you".
 
-**Voice:** “Coding agents can work in parallel, but supervising them still means scanning parallel walls of logs. Codeville turns five real Codex projects into one calm, living village—showing state and outcome without exposing the private code underneath.”
+**Voice:** "Five real Codex agents are working on five repositories right now — and this screen is safe to leave on a projector, because the village provably never renders code, paths, or prompts. When a builder needs a decision, it walks to the gate and raises a lantern."
 
-## 0:20–0:42 — One-click real setup
+## 0:18–0:40 — One-click real setup
 
-**Visual:** Reset, show `gpt-5.6-sol` and Codex version, click **Create demo village**.
+**Visual:** Press W to the Foreman's Desk. Reset, show `gpt-5.6-sol` and Codex version, click **Create demo village**, then **Start all builders** and the exact five-repository preflight.
 
-**Voice:** “This native desktop developer tool connects to the installed Codex app-server. One click creates five isolated judge repositories, each with one missing implementation and four tests. Nothing here is a canned animation.”
+**Voice:** "This is a native desktop tool over the installed Codex app-server. One click creates five disposable judge repositories; one confirmation launches five independent GPT-5.6 threads. Nothing here is a canned animation — every movement is a real, project-scoped Codex event."
 
-## 0:42–1:30 — Five live agents
+## 0:40–1:10 — Scaffolds: your repo is untouchable
 
-**Visual:** Click **Start all builders**, show the exact confirmation preflight, and confirm. Move between project cards as their states diverge; show two or three builders in different stations. If an approval appears, show it briefly.
+**Visual:** While builders edit and chimneys smoke, open a terminal beside the app and run `git status` in a demo repository — clean. Show planks/blueprints as builders move.
 
-**Voice:** “One app-server connection now runs five independent GPT-5.6 Codex threads. Every notification is routed back to its project. Planning, reading, editing, testing, and approvals drive independent builders in real time. The Pixi scene stays mounted, while per-builder queues and spring motion turn bursty protocol events into smooth, truthful choreography.”
+**Voice:** "Here's the part that matters: every builder works in a scaffold — a git worktree on its own branch. The repository checkout stays byte-identical the whole time agents work. Nothing lands without you."
 
-## 1:30–1:58 — Outcomes, not logs
+## 1:10–1:50 — Inspect and install: done means merged
 
-**Visual:** Let all five complete. Select two projects and show their bubble and matching Foreman's Desk debrief.
+**Visual:** Pennants rise as builders finish. Select one — Site Inspection shows the fact line (files, ±, tests passed, duration), the builder's account, then the full diff. Click **Install in repository**. Show `git log -1` in the terminal: one squash commit. Show the workshop leveling and a plaque appearing.
 
-**Voice:** “Each agent finishes by saying what landed and whether it recommends follow-up. Codeville treats that final prose as untrusted: only a short validated object reaches the renderer. Paths, URLs, code syntax, identifiers, and secret-shaped text are rejected. All five fixture test suites pass independently.”
+**Voice:** "Completion isn't confetti — it's a pennant that means 'inspect me'. The fact line comes from telemetry the model can't fake, and the builder's account may only name files the diffstat proves it changed. One click installs a single squash commit. Levels are earned by landed work, and the town accretes a plaque for every session that shipped."
 
-## 1:58–2:18 — Persistence
+## 1:50–2:15 — Command center flow
 
-**Visual:** Quit and reopen; select Acorn Tasks and show level 1 plus its debrief.
+**Visual:** Answer a builder's question in the reply card; show the Workshop ledger and a queued work order starting with **Start next order**. Quit and reopen — everything restores.
 
-**Voice:** “The five spatial identities, upgrades, and safe debriefs survive a full relaunch. Progress belongs to each project; one failure or approval never freezes the rest of town.”
+**Voice:** "Questions and approvals route to the desk; the ledger keeps a verified history of every session; work orders queue the day's tasks. Quit and relaunch — the town, its levels, ledger, and queues all persist."
 
-## 2:18–2:43 — Build story and impact
+## 2:15–2:45 — Build story and impact
 
-**Visual:** Briefly show README architecture and the evidence commands, then return to the full village.
+**Visual:** Briefly show README architecture and the gate commands, then end wide on the village in Wall mode.
 
-**Voice:** “Codex with GPT-5.6 also built Codeville: architecture, protocol bindings, concurrent routing, procedural Pixi world, privacy tests, migration, packaging, and real five-thread acceptance proof. The human decisions were the boundaries—local-first, private, spatial, and outcome-focused. Codeville makes multi-agent work legible at a glance.”
+**Voice:** "Codex with GPT-5.6 built Codeville itself — architecture, protocol bindings, the scaffold engine, the privacy registers, and the release gate that starts five real threads, proves the checkouts stay clean, installs all five improvements, and relaunches to prove persistence. The human decisions were the boundaries: local-first, private by construction, and nothing merged without you. Five agents. One town. Done means merged."
 
 ## Recording checklist
 
 - Under 3:00; judges need not watch beyond three minutes.
 - Publicly visible on YouTube, with clear audio/voiceover.
 - Explicitly say **Codex** and **GPT-5.6**, and show how both were used.
-- Show five live projects, completion debriefs, and relaunch—not only code or slides.
+- Show five live projects, the clean `git status` during work, an in-app diff → Install, and relaunch persistence — not only code or slides.
 - No private paths, notifications, third-party marks, copyrighted music, or unlicensed media.
 - Verify 1080p, audio, captions, duration, and logged-out playback.
