@@ -4,7 +4,7 @@ import { access, cp, mkdir, rm, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { promisify } from 'node:util';
 
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Notification } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Notification, shell } from 'electron';
 
 import { parseCodevilleResult, parseRawCompletionAccount, sanitizeDeskAccountText } from '../src/codex/debrief';
 import { translateCodexMessage } from '../src/codex/translator';
@@ -129,7 +129,16 @@ function sendVillageEvents(notification: ServerNotification): void {
       });
     } else {
       window?.webContents.send('village:event', { projectId: runtime.projectId, event });
-      if (event.type === 'session_failed' || event.type === 'session_interrupted') cleanupRuntime(runtime);
+      if (event.type === 'session_failed' || event.type === 'session_interrupted') {
+        // Seal partial work so it is inspectable (or auto-discarded when empty)
+        // instead of invisibly blocking the lot until the next relaunch.
+        runtime.turnId = null;
+        if (event.type === 'session_failed') void notifyAttention(runtime.projectId, 'Construction paused — the builder hit an error.');
+        void announceDiffReady(runtime).then(() => {
+          cleanupRuntime(runtime);
+          void updateAttentionBadge();
+        });
+      }
     }
   }
 }
@@ -391,6 +400,13 @@ function registerIpc(): void {
     if (!runtime?.turnId || !client) return;
     await client.interruptTurn(runtime.threadId, runtime.turnId);
   });
+  ipcMain.handle('session:steer', async (_event, projectId: string, message: string) => {
+    if (!message.trim()) throw new Error('Enter a direction before redirecting the builder');
+    const runtime = runtimes.forProject(projectId);
+    if (!runtime?.turnId || !client) throw new Error('This builder has no active turn to redirect');
+    await client.steerTurn(runtime.threadId, runtime.turnId, message.trim());
+    window?.webContents.send('village:event', { projectId, event: { type: 'session_redirected', at: new Date().toISOString() } });
+  });
   ipcMain.handle('session:continue', async (_event, projectId: string, reply: string) => {
     if (!reply.trim()) throw new Error('Enter a reply before continuing');
     const progress = (await store.read()).projects[projectId];
@@ -534,6 +550,11 @@ function registerIpc(): void {
     await store.recordLanding(projectId, record.sessionId, 'discarded');
     window?.webContents.send('village:event', { projectId, event: { type: 'session_discarded', at: new Date().toISOString() } });
     void updateAttentionBadge();
+  });
+  ipcMain.handle('scaffold:open', async (_event, projectId: string) => {
+    const record = await requireScaffold(projectId);
+    const failure = await shell.openPath(record.scaffoldPath);
+    if (failure) throw new Error('The working copy could not be opened');
   });
   ipcMain.handle('orders:add', (_event, projectId: string, task: string) => store.addWorkOrder(projectId, task));
   ipcMain.handle('orders:delete', (_event, projectId: string, orderId: string) => store.deleteWorkOrder(projectId, orderId));

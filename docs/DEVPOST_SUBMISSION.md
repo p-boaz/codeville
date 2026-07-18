@@ -34,7 +34,7 @@ Human decisions established the product boundary: a native local tool instead of
 
 ## Testing instructions
 
-Apple-silicon Mac plus authenticated Codex CLI with `gpt-5.6-sol` access. Unzip and Control-click **Codeville.app → Open** if Gatekeeper warns. Click **Create demo village**, then **Start all builders**; review the exact preflight and confirm. Confirm five project cards complete and display debriefs. Quit/reopen and select Acorn Tasks to verify level 1 persists. Full details are in `docs/JUDGE_TESTING.md`.
+Apple-silicon Mac plus authenticated Codex CLI with `gpt-5.6-sol` access. Unzip and Control-click **Codeville.app → Open** if Gatekeeper warns. Click **Create demo village**, then **Start all builders**; review the exact preflight and confirm. While builders work, `git status` in any demo repository stays clean — every session runs in an isolated scaffold worktree. Finished workshops fly an inspection pennant: open **Site inspection**, view the verified counts and full diff, and click **Install in repository** to land one squash commit. Quit/reopen and select Acorn Tasks to verify level 1, its plaque, and the ledger persist. Press **W** for the wall-safe display. Full details are in `docs/JUDGE_TESTING.md`; `node scripts/demo-drive.mjs` replays the whole tour automatically.
 
 ## Links to add
 

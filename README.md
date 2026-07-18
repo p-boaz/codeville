@@ -62,12 +62,14 @@ React project rail + selected desk ── one long-lived PixiJS village
                  │ narrow, typed project envelopes
                  ▼
 Electron main process ── one JSONL stdio connection ── Codex app-server
-       │                         ├── thread 1 → project 1
-       │                         ├── thread 2 → project 2
-       │                         └── ... up to five live threads
-       ├── thread/project registry + deterministic approval queue
-       ├── privacy translator + discriminated result sanitizer
-       └── atomic v2 store: assignments, opaque identities, levels, safe debriefs
+       │                         ├── thread 1 → scaffold 1 (worktree of project 1)
+       │                         ├── thread 2 → scaffold 2 (worktree of project 2)
+       │                         └── ... up to five live threads, none in a user checkout
+       ├── scaffold manager: worktree per session, diff/apply/keep/discard, orphan reconcile
+       ├── thread/project registry + deterministic approval queue + turn/steer redirects
+       ├── privacy translator + dual-register debrief sanitizer (wall strict, desk diffstat-verified)
+       └── atomic store: assignments, opaque identities, land-earned levels, session ledger,
+           work-order queues, safe debriefs
 ```
 
 One initialized app-server connection multiplexes all project threads. Every renderer event carries an app-owned opaque `projectId`, so interleaved notifications and approval requests remain attached to the correct workshop. Each builder owns its own visual phase queue and spring motion. PixiJS mounts once; project updates never replace the canvas or reset actors.

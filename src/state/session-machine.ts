@@ -56,6 +56,7 @@ const labels: Record<VillageEvent['type'], string> = {
   session_external: 'Conversation moved to Ghostty',
   session_failed: 'Construction paused',
   session_interrupted: 'Work stopped safely',
+  session_redirected: 'New direction sent to the builder',
   diff_ready: 'Improvement ready for inspection',
   session_applied: 'Improvement installed in your repository',
   session_kept: 'Branch kept for your own merge',
@@ -148,6 +149,8 @@ function phaseForEvent(event: VillageEvent): SessionPhase {
       return 'failed';
     case 'session_interrupted':
       return 'interrupted';
+    case 'session_redirected':
+      return 'planning';
     case 'diff_ready':
       return 'reviewing';
     case 'session_applied':

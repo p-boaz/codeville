@@ -21,7 +21,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['electron/**/*.ts', 'vite.config.ts'],
+    files: ['electron/**/*.ts', 'vite.config.ts', 'scripts/**/*.mjs'],
     languageOptions: { globals: globals.node },
   },
 );

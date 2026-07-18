@@ -44,8 +44,8 @@ Verified July 18, 2026 PT:
 - Five-project packaged gate: the actual macOS bundle completed five real repairs and relaunch proof in 44.0 seconds.
 - Five isolated fixture repositories each passed all four tests: twenty independent fixture assertions total.
 - Visual proof: [`docs/screenshots/codeville-five-projects.png`](screenshots/codeville-five-projects.png).
-- Judge archive: `release/Codeville-0.1.0-mac-arm64.zip` (134 MB), rebuilt 2026-07-18 14:47 PT from the command-center build (scaffold isolation, Site Inspection landing, dual-register debriefs, salience, ledger, work orders, wall mode) after the packaged five-project gate passed against this exact `.app`.
-- SHA-256: `e90abc8a34d9dabc632300bdb3978f16e28949087c9f9158b617122e0e90b359`.
+- Judge archive: `release/Codeville-0.1.0-mac-arm64.zip` (134 MB), rebuilt 2026-07-18 15:20 PT from the full command-center build: scaffold isolation, Site Inspection landing, dual-register debriefs, salience, ledger, work orders, wall mode, mid-turn `turn/steer` redirects, failed-session scaffold recovery, chimes/props, and the willow-ward scenery pass. Packaged E2E (deterministic + one real session) passed against this exact `.app`; the five-project packaged gate is re-run at final freeze.
+- SHA-256: `74180fbbfd2b4a7f07301de47f7536ddff894a82a1a4b78f10e708c70827014c`.
 
 The E2E harness is not mocked. It starts the installed Codex app-server over JSONL stdio, registers independent project ownership, requests real GPT-5.6 edits, independently reruns every fixture test, validates project-scoped sanitized debriefs and progression, marks the canvas node before work and proves it survives all events, closes Electron, and verifies restored state after relaunch.
 

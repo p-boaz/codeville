@@ -60,7 +60,7 @@ Core job: “While several Codex agents work, show me which project is planning,
 | F8 | Show what landed and follow-up status in a builder bubble and accessible panel. | Five completion bubbles and DOM debrief assertions. |
 | F9 | Keep one Pixi canvas alive after mount. | Canvas identity survives all five sessions. |
 | F10 | Smooth independent actor movement with phase dedupe/dwell/coalescing. | Pure queue tests and delta-time spring controller. |
-| F11 | Increment only the successfully completed project. | Store tests and five isolated level assertions. |
+| F11 | Increment a workshop's level only when its improvement lands (Install or Keep); completion alone never levels. | Store landing tests and five isolated level assertions after in-app installs. |
 | F12 | Migrate v1 path-keyed progress without loss. | Migration test produces opaque ID and preserves level/count. |
 | F13 | Package an Apple-silicon app with the demo fixture. | `package:mac` and five-project packaged E2E. |
 | F14 | Assign any existing local Git repository to any empty/reassigned lot using a UUID unrelated to its path. | Store and safe assignment E2E tests. |

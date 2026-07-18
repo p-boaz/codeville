@@ -40,6 +40,7 @@ export type VillageEvent =
   | { type: 'session_external'; at: string }
   | { type: 'session_failed'; at: string; recoverable: boolean }
   | { type: 'session_interrupted'; at: string }
+  | { type: 'session_redirected'; at: string }
   | { type: 'diff_ready'; at: string; filesChanged: number; insertions: number; deletions: number }
   | { type: 'session_applied'; at: string; commit: string }
   | { type: 'session_kept'; at: string; branch: string }
@@ -232,6 +233,8 @@ export interface CodevilleBridge {
   prepareDemoVillage(): Promise<ProjectSelection[]>;
   startSession(input: StartSessionInput): Promise<StartSessionResult>;
   interruptSession(projectId: string): Promise<void>;
+  steerSession(projectId: string, message: string): Promise<void>;
+  openScaffold(projectId: string): Promise<void>;
   respondToApproval(requestId: string, decision: ApprovalDecision): Promise<void>;
   respondToInput(projectId: string, requestId: string | null, answers: InputResponse[]): Promise<void>;
   continueSession(projectId: string, reply: string): Promise<StartSessionResult>;

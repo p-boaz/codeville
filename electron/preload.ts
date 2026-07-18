@@ -14,6 +14,8 @@ const bridge: CodevilleBridge = {
   prepareDemoVillage: () => ipcRenderer.invoke('project:demo-village'),
   startSession: (input) => ipcRenderer.invoke('session:start', input),
   interruptSession: (projectId) => ipcRenderer.invoke('session:interrupt', projectId),
+  steerSession: (projectId, message) => ipcRenderer.invoke('session:steer', projectId, message),
+  openScaffold: (projectId) => ipcRenderer.invoke('scaffold:open', projectId),
   respondToApproval: (requestId: string, decision: ApprovalDecision) =>
     ipcRenderer.invoke('approval:respond', requestId, decision),
   respondToInput: (projectId, requestId, answers) => ipcRenderer.invoke('input:respond', projectId, requestId, answers),

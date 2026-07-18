@@ -202,6 +202,16 @@ export function App() {
     }
   }
 
+  async function steerSession(message: string) {
+    if (!selectedProjectId) return;
+    await window.codeville.steerSession(selectedProjectId, message);
+  }
+
+  function openScaffold() {
+    if (!selectedProjectId) return;
+    void window.codeville.openScaffold(selectedProjectId).catch((cause) => setLandingError(cause instanceof Error ? cause.message : 'The working copy could not be opened.'));
+  }
+
   async function landSession(action: 'apply' | 'keep' | 'discard') {
     if (!selectedProjectId) return;
     const projectId = selectedProjectId;
@@ -386,7 +396,7 @@ export function App() {
           <div className="stage-heading"><span className="eyebrow">Willow Ward · Five live lots</span><h1>{allDemo ? 'The whole village is awake' : 'Your agents, building side by side'}</h1><p>Every movement comes from a real, project-scoped Codex event.</p></div>
           {!progression.lots.some((lot) => lot.projectId) && <div className="empty-village-cta"><strong>Build a five-project demo village</strong><span>Five isolated repositories. Five real Codex builders. One living map.</span><button onClick={useDemoVillage}>Create demo village <span>→</span></button></div>}
         </div>
-        {!wallMode && <TaskPanel environment={environment} project={selectedProject} task={task} session={session} progress={progress} sessionActive={sessionActive} pendingInput={pendingInput} inputSubmitting={inputSubmitting} inputError={inputError} pendingScaffold={selectedProjectId ? scaffoldViews[selectedProjectId] ?? null : null} sessionDiff={sessionDiff} landingBusy={landingBusy} landingError={landingError} onLoadDiff={loadDiff} onCloseDiff={() => setSessionDiff(null)} onApply={() => landSession('apply')} onKeep={() => landSession('keep')} onDiscard={() => landSession('discard')} onAddOrder={addOrder} onDeleteOrder={deleteOrder} onStartNextOrder={startNextOrder} proof={proof} handoffNotice={handoffNotice} error={(selectedProjectId && projectErrors[selectedProjectId]) || error} onTaskChange={(value) => selectedProjectId && setTasks((current) => updateProjectTask(current, selectedProjectId, value))} onChooseProject={chooseProject} onUseDemoVillage={useDemoVillage} onStart={startSession} onInterrupt={interruptSession} onSubmitInput={submitInput} onHandoff={handoffToGhostty} onReclaim={reclaimFromGhostty} onNewTask={newTask} onResetVillage={resetVillage} />}
+        {!wallMode && <TaskPanel environment={environment} project={selectedProject} task={task} session={session} progress={progress} sessionActive={sessionActive} pendingInput={pendingInput} inputSubmitting={inputSubmitting} inputError={inputError} pendingScaffold={selectedProjectId ? scaffoldViews[selectedProjectId] ?? null : null} sessionDiff={sessionDiff} landingBusy={landingBusy} landingError={landingError} onLoadDiff={loadDiff} onCloseDiff={() => setSessionDiff(null)} onApply={() => landSession('apply')} onKeep={() => landSession('keep')} onDiscard={() => landSession('discard')} onAddOrder={addOrder} onDeleteOrder={deleteOrder} onStartNextOrder={startNextOrder} onSteer={steerSession} onOpenScaffold={openScaffold} proof={proof} handoffNotice={handoffNotice} error={(selectedProjectId && projectErrors[selectedProjectId]) || error} onTaskChange={(value) => selectedProjectId && setTasks((current) => updateProjectTask(current, selectedProjectId, value))} onChooseProject={chooseProject} onUseDemoVillage={useDemoVillage} onStart={startSession} onInterrupt={interruptSession} onSubmitInput={submitInput} onHandoff={handoffToGhostty} onReclaim={reclaimFromGhostty} onNewTask={newTask} onResetVillage={resetVillage} />}
       </section>
       {approval && <ApprovalDialog request={approval} onDecision={respondToApproval} />}
       {pendingBatch && <BatchLaunchDialog projects={pendingBatch} onCancel={() => setPendingBatch(null)} onConfirm={confirmBatch} />}
@@ -400,5 +410,7 @@ function restoredSession(project: ProjectProgress): SessionState {
   }
   if (project.conversationStatus === 'needs_review') return reduceSession(initialSessionState, { type: 'session_needs_review', at: project.lastTurnStartedAt ?? new Date(0).toISOString() });
   if (project.conversationStatus === 'external') return reduceSession(initialSessionState, { type: 'session_external', at: project.handoffAt ?? new Date(0).toISOString() });
+  // A completed workshop keeps its lit windows and speech bubble across relaunch.
+  if (project.lastDebrief) return { ...initialSessionState, phase: 'completed', debrief: project.lastDebrief };
   return initialSessionState;
 }

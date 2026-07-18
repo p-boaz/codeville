@@ -22,6 +22,7 @@ interface InspectionCardProps {
   onApply(): void;
   onKeep(): void;
   onDiscard(): void;
+  onOpenScaffold(): void;
 }
 
 /**
@@ -29,7 +30,7 @@ interface InspectionCardProps {
  * scaffold branch, the full diff on demand, and the three landing verbs.
  * Nothing reaches the user's checkout until Apply.
  */
-export function InspectionCard({ scaffold, diff, busy, error, onLoadDiff, onCloseDiff, onApply, onKeep, onDiscard }: InspectionCardProps) {
+export function InspectionCard({ scaffold, diff, busy, error, onLoadDiff, onCloseDiff, onApply, onKeep, onDiscard, onOpenScaffold }: InspectionCardProps) {
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
 
   return (
@@ -62,7 +63,10 @@ export function InspectionCard({ scaffold, diff, busy, error, onLoadDiff, onClos
           ))}
         </div>
       ) : (
-        <button className="secondary-button" onClick={onLoadDiff} disabled={busy}>Inspect the diff</button>
+        <div className="landing-actions">
+          <button className="secondary-button" onClick={onLoadDiff} disabled={busy}>Inspect the diff</button>
+          <button className="text-button" onClick={onOpenScaffold} disabled={busy} title="Open the isolated working copy in Finder for a full-IDE look">Open working copy</button>
+        </div>
       )}
 
       {error && <div className="error-banner" role="alert">{error}</div>}

@@ -61,6 +61,7 @@ export function ProjectRail({ progression, sessions, tasks, selectedSlot, batchS
       </div>
       {canStartAll && <button className="start-all-button" onClick={onStartAll}>Start all builders <span>→</span></button>}
       {progression.lots.some((lot) => lot.projectId && !lot.isDemo) && <button className="start-selected-button" disabled={!canStartSelected} onClick={onStartSelected}>Start selected builders <span>→</span></button>}
+      <div className="rail-hint" aria-hidden="true"><kbd>1</kbd>–<kbd>5</kbd> lots · <kbd>W</kbd> wall mode</div>
       <div className="rail-privacy"><span>◇</span> Local-only project data</div>
     </nav>
   );

@@ -103,6 +103,16 @@ export class AppServerClient {
     return this.request<ThreadResumeResponse>('thread/resume', buildThreadResumeParams(threadId, cwd, model));
   }
 
+  /** Mid-turn redirection: the turn keeps running with the new direction folded in. */
+  async steerTurn(threadId: string, expectedTurnId: string, text: string): Promise<void> {
+    this.assertInitialized();
+    await this.request('turn/steer', {
+      threadId,
+      expectedTurnId,
+      input: [{ type: 'text', text, text_elements: [] }],
+    });
+  }
+
   get pid(): number | null { return this.process?.pid ?? null; }
   get connectionStartedAt(): string | null { return this.connectedAt; }
   get connected(): boolean { return Boolean(this.process && this.initialized); }

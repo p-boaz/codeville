@@ -28,6 +28,8 @@ interface TaskPanelProps {
   onAddOrder(task: string): void;
   onDeleteOrder(orderId: string): void;
   onStartNextOrder(): void;
+  onSteer(message: string): Promise<void>;
+  onOpenScaffold(): void;
   proof: ConnectionProof | null;
   handoffNotice: string | null;
   error: string | null;
@@ -83,6 +85,8 @@ export function TaskPanel({
   onAddOrder,
   onDeleteOrder,
   onStartNextOrder,
+  onSteer,
+  onOpenScaffold,
   proof,
   handoffNotice,
   error,
@@ -142,6 +146,8 @@ export function TaskPanel({
         </label>
       )}
 
+      {sessionActive && session.phase !== 'approval' && session.phase !== 'input' && <SteerSection onSteer={onSteer} />}
+
       {pendingInput && <InteractionCard key={`${pendingInput.requestId ?? 'terminal'}-${pendingInput.source}`} request={pendingInput} submitting={inputSubmitting} error={inputError} onSubmit={onSubmitInput} />}
 
       {session.phase === 'needs_review' && <section className="review-card" aria-label="Result needs review"><strong>Completion was not verified</strong><p>The Codex turn ended without a valid completed or waiting result marker. Progression was not changed.</p></section>}
@@ -157,6 +163,7 @@ export function TaskPanel({
           onApply={onApply}
           onKeep={onKeep}
           onDiscard={onDiscard}
+          onOpenScaffold={onOpenScaffold}
         />
       )}
 
@@ -267,6 +274,42 @@ function formatTime(value: string): string {
 
 function formatDay(value: string): string {
   return new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
+}
+
+function SteerSection({ onSteer }: { onSteer(message: string): Promise<void> }) {
+  const [draft, setDraft] = useState('');
+  const [sending, setSending] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  async function send() {
+    if (!draft.trim() || sending) return;
+    setSending(true); setNotice(null);
+    try {
+      await onSteer(draft.trim());
+      setDraft('');
+      setNotice('Direction sent — the builder keeps working with it folded in.');
+    } catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : 'The redirect could not be sent.');
+    } finally { setSending(false); }
+  }
+
+  return (
+    <details className="proof-panel steer-panel">
+      <summary><span>Redirect builder</span><strong>mid-turn</strong></summary>
+      <div className="order-add">
+        <input
+          aria-label="Redirect direction"
+          placeholder="e.g. Prefer the smaller fix; skip refactors"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => { if (event.key === 'Enter') void send(); }}
+        />
+        <button className="secondary-button" disabled={!draft.trim() || sending} onClick={() => void send()}>{sending ? 'Sending…' : 'Send'}</button>
+      </div>
+      {notice && <small role="status">{notice}</small>}
+      <small>Steers the active turn without stopping it. The builder is not interrupted.</small>
+    </details>
+  );
 }
 
 function WorkOrdersSection({ queue, canStartNext, onAdd, onDelete, onStartNext }: {

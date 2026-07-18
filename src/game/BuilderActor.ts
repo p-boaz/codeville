@@ -21,6 +21,7 @@ export class BuilderActor {
 
   private readonly planks = new Graphics();
   private readonly blueprint = new Graphics();
+  private readonly hammer = new Graphics();
 
   constructor(color: number) {
     const shadow = new Graphics().ellipse(0, 18, 25, 9).fill({ color: 0x173c38, alpha: 0.18 });
@@ -31,8 +32,9 @@ export class BuilderActor {
     body.rect(-10, -12, 20, 4).fill(0xc9842d);
     body.rect(-10, 17, 7, 9).fill(0x58382d);
     body.rect(3, 17, 7, 9).fill(0x58382d);
-    // Truthful props: planks appear only while the editing phase is displayed,
-    // the blueprint scroll only while reading — both driven by real events.
+    // Truthful props: planks and the swinging hammer appear only while the
+    // editing phase is displayed, the blueprint scroll only while planning or
+    // reading — all driven by real events.
     this.planks.rect(-16, -4, 32, 4).fill(0x8a5a36).stroke({ color: 0x58382d, width: 1 });
     this.planks.rect(-14, -9, 28, 4).fill(0xa06a40).stroke({ color: 0x58382d, width: 1 });
     this.planks.position.set(11, 2);
@@ -42,7 +44,11 @@ export class BuilderActor {
     this.blueprint.position.set(11, 3);
     this.blueprint.rotation = -0.35;
     this.blueprint.visible = false;
-    this.container.addChild(shadow, body, this.planks, this.blueprint);
+    this.hammer.roundRect(-1.5, -13, 3, 14, 1.5).fill(0x8a5a36);
+    this.hammer.roundRect(-6, -17, 12, 5, 2).fill(0x7d838a).stroke({ color: 0x4c5257, width: 1 });
+    this.hammer.position.set(13, -4);
+    this.hammer.visible = false;
+    this.container.addChild(shadow, body, this.planks, this.blueprint, this.hammer);
     const start = targets.idle;
     this.container.position.set(start.x, start.y);
   }
@@ -67,7 +73,10 @@ export class BuilderActor {
     this.container.y += this.velocity.y * dt;
     const speed = Math.hypot(this.velocity.x, this.velocity.y);
     this.container.rotation = speed > 3 ? Math.sin(this.elapsed * 0.018) * 0.035 : 0;
-    this.container.scale.y = 1 + (speed > 3 ? Math.sin(this.elapsed * 0.024) * 0.025 : 0);
+    // Walking bounce while moving; a slow breath while standing at a station.
+    this.container.scale.y = 1 + (speed > 3 ? Math.sin(this.elapsed * 0.024) * 0.025 : Math.sin(this.elapsed * 0.0035) * 0.012);
+    if (this.hammer.visible) this.hammer.rotation = 0.4 + Math.sin(this.elapsed * 0.013) * 0.55;
+    if (this.blueprint.visible) this.blueprint.position.y = 3 + Math.sin(this.elapsed * 0.005) * 1.3;
   }
 
   get phase(): SessionPhase { return this.displayedPhase; }
@@ -78,6 +87,7 @@ export class BuilderActor {
     this.displayedPhase = next;
     this.phaseElapsedMs = 0;
     this.planks.visible = next === 'editing';
+    this.hammer.visible = next === 'editing';
     this.blueprint.visible = next === 'reading' || next === 'planning';
   }
 }
