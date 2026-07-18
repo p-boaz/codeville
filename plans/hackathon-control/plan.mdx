@@ -1,0 +1,269 @@
+---
+title: "Codeville — Build Week Control Plan"
+brief: "Build and submit a polished desktop coding village driven by real Codex sessions before July 21, 2026 at 5:00 PM PT."
+kind: "plan"
+localOnly: true
+---
+
+# Codeville — Build Week Control Plan
+
+Codeville is a desktop developer tool that turns real Codex sessions into a living village. A local repository is a house, a Codex thread is its resident builder, and actual planning, editing, command, approval, failure, and completion events drive the world. The hackathon deliverable is one complete, judge-testable vertical slice—not the future multiplayer platform.
+
+<Callout id="deadline" tone="warning">
+
+**Submission deadline:** Tuesday, July 21, 2026 at 5:00 PM PT. The official rules govern when the marketing page differs. Registration and the Devpost draft must be completed before the same deadline.
+
+</Callout>
+
+## Product outcome
+
+A judge can launch the macOS application, choose an allowed repository, enter a concrete coding task, and watch a truthful visual representation of Codex doing the work. The resident changes activity only in response to real app-server events. When the turn completes successfully, the house receives a persistent upgrade. The application never sends repository contents, prompts, filenames, diffs, command output, or secrets to a multiplayer service.
+
+The primary demo uses a safe fixture repository committed under `fixtures/demo-repo/`. The task is deterministic enough to demonstrate live work in under two minutes while still exercising real Codex planning, file changes, a command/test event, and completion.
+
+### Definition of done
+
+<Checklist
+  id="definition-of-done"
+  items={[
+    { id: "launch", label: "Packaged macOS app launches without a development server" },
+    { id: "select-repo", label: "User selects a repository and the selected path remains local" },
+    { id: "start-turn", label: "User starts a real Codex thread and turn in the selected repository" },
+    { id: "truthful-events", label: "Planning, file work, command/test, failure, approval, and completion states derive from real app-server messages" },
+    { id: "persistent-upgrade", label: "Successful completion visibly upgrades the house and the upgrade survives relaunch" },
+    { id: "safe-summary", label: "UI exposes only deliberately safe activity labels by default" },
+    { id: "failure-recovery", label: "Missing Codex, invalid folders, turn failures, interruption, and malformed events have useful recovery UI" },
+    { id: "tests", label: "Unit, integration, typecheck, lint, build, and packaged smoke checks pass" },
+    { id: "live-proof", label: "A fresh live run completes against the fixture repo after the packaged build" },
+    { id: "submission", label: "README, evidence log, Devpost copy, demo storyboard, testing instructions, and compliance checklist are complete" },
+  ]}
+/>
+
+## Scope
+
+### Included
+
+- One local project lot with a polished village scene and persistent house progression.
+- Native folder selection, task entry, start, interrupt, and reset-demo controls.
+- Local Codex app-server over stdio with version-matched generated TypeScript bindings where practical.
+- A narrow `VillageEvent` translator that maps raw Codex protocol messages into safe game states.
+- A secure activity panel for information that should not be represented only as animation.
+- A deterministic demo mode that uses the real integration against the included fixture repository.
+- Local JSON persistence under Electron's application data directory.
+- macOS packaged build; documented development mode for other supported desktop platforms.
+- Submission artifacts and evidence captured as first-class repository files.
+
+### Explicitly deferred
+
+- Public multiplayer, accounts, cloud synchronization, spectators, or remote machine control.
+- Windows/Linux packaged release validation, auto-update, signing, notarization, or app-store distribution.
+- A deep economy, free-roaming simulation, procedural buildings, generated runtime art, or multiple biomes.
+- Uploading source code, prompts, commands, filenames, diffs, environment variables, logs, or terminal output.
+- Replacing Codex approvals or weakening the user's configured sandbox.
+
+<Callout id="scope-decision" tone="decision">
+
+**Desktop decision:** use Electron + React + TypeScript + Vite + PixiJS. The machine has the exact Node/pnpm toolchain but no Rust toolchain, and app-server plus desktop process management is simplest when the shell, controller, tests, and UI share TypeScript. Tauri would add Rust and sidecar packaging risk without improving the judged vertical slice.
+
+</Callout>
+
+## User experience
+
+1. The village opens on a calm project lot. The user chooses a repository or selects the included demo repository.
+2. The house receives a project nickname. The task panel accepts one coding request and explains that execution remains governed by Codex sandbox and approval settings.
+3. Starting the task creates a local thread. A resident walks to the house and changes stations as real events arrive: drafting table, workbench, inspection area, doorstep, or celebration spot.
+4. The activity panel shows a coarse event timeline. Sensitive details are absent by default; any exact approval information remains local and explicit.
+5. Success completes a visible building upgrade and records it locally. Failure leaves the property unchanged, shows a recoverable state, and preserves the safe event history for the demo.
+
+## Architecture and trust boundary
+
+<Diagram id="architecture" caption="All execution and sensitive data stay inside the desktop process boundary." frame="show">
+
+```html
+<div class="diagram-panel" data-rough style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px;padding:18px">
+  <div class="diagram-box" style="display:flex;flex-direction:column;gap:12px;padding:14px">
+    <strong>Codeville desktop boundary</strong>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="diagram-node">React + PixiJS village</div>
+      <div class="diagram-node">Electron main controller</div>
+      <div class="diagram-node">Safe event translator</div>
+      <div class="diagram-node">Local progression store</div>
+    </div>
+    <div class="diagram-node">Codex app-server over stdio</div>
+    <div class="diagram-node">User-approved repository</div>
+  </div>
+  <div class="diagram-box" style="display:flex;flex-direction:column;gap:12px;padding:14px">
+    <strong>Data boundary</strong>
+    <div class="diagram-node">Allowed: coarse state, counts, public project nickname</div>
+    <div class="diagram-node">Local only: prompt, paths, code, diffs, commands, output, secrets</div>
+    <div class="diagram-muted">Hackathon MVP has no remote relay. The boundary is still enforced in types and tests so future multiplayer cannot accidentally inherit raw events.</div>
+  </div>
+</div>
+```
+
+</Diagram>
+
+### Process ownership
+
+- `electron/main.ts` owns folder dialogs, app-server lifecycle, raw protocol input, persistence, and privileged IPC.
+- `electron/preload.ts` exposes a small typed API; the renderer receives no unrestricted Node or filesystem access.
+- `src/codex/translator.ts` is a pure, exhaustively tested raw-event-to-safe-event boundary.
+- `src/state/session-machine.ts` is the deterministic session state machine used by both UI and tests.
+- `src/game/Village.tsx` renders from safe application state; it never parses raw Codex messages.
+- `src/features/task/TaskPanel.tsx` handles project/task controls and local approval surfaces.
+
+## Contracts
+
+<AnnotatedCode
+  id="village-event-contract"
+  filename="src/shared/village-events.ts"
+  language="ts"
+  code={"export type VillageEvent =\n  | { type: 'session_started'; at: string }\n  | { type: 'planning'; at: string }\n  | { type: 'reading'; at: string; quantity?: number }\n  | { type: 'editing'; at: string; quantity?: number }\n  | { type: 'running_command'; at: string; category: 'test' | 'build' | 'lint' | 'other' }\n  | { type: 'approval_required'; at: string; requestId: string; category: string }\n  | { type: 'tests_passed'; at: string; count?: number }\n  | { type: 'tests_failed'; at: string; count?: number }\n  | { type: 'session_completed'; at: string }\n  | { type: 'session_failed'; at: string; recoverable: boolean }\n  | { type: 'session_interrupted'; at: string };"}
+  annotations={[
+    { lines: "1-11", label: "Safe vocabulary", note: "Only this union may cross from the privileged controller into game state." },
+    { lines: "6", label: "No command text", note: "The renderer receives a command category, never the command or output." },
+    { lines: "7", label: "Local approval id", note: "The id supports an explicit local decision flow without exposing request contents to the village." },
+  ]}
+/>
+
+<Table
+  id="event-map"
+  columns={["Raw Codex signal", "Safe event", "Village behavior"]}
+  rows={[
+    ["turn/started", "session_started", "Resident walks toward the project house"],
+    ["agent/reasoning or plan item", "planning", "Resident works at the drafting table"],
+    ["file read/search item", "reading", "Resident studies plans and shelves"],
+    ["file change item", "editing", "Hammering, scaffolding, and construction particles"],
+    ["command execution item", "running_command(category)", "Inspection machinery animates"],
+    ["approval server request", "approval_required", "Resident waits at the doorstep; secure panel opens"],
+    ["successful test-like command", "tests_passed", "Inspection light turns green"],
+    ["failed test-like command", "tests_failed", "Inspection light turns amber and work pauses"],
+    ["turn/completed success", "session_completed", "House upgrade completes and persists"],
+    ["turn/completed failure", "session_failed", "Site becomes recoverable without granting an upgrade"],
+  ]}
+/>
+
+## Implementation map
+
+<FileTree
+  id="file-map"
+  title="Planned repository"
+  entries={[
+    { path: "electron/main.ts", change: "added", note: "Window, secure IPC, folder dialog, app-server ownership" },
+    { path: "electron/preload.ts", change: "added", note: "Narrow contextBridge API" },
+    { path: "electron/codex/app-server-client.ts", change: "added", note: "JSONL handshake, request correlation, notifications, shutdown" },
+    { path: "electron/codex/generated/", change: "added", note: "Bindings generated by the installed Codex CLI" },
+    { path: "src/shared/village-events.ts", change: "added", note: "Privacy-safe public event contract" },
+    { path: "src/codex/translator.ts", change: "added", note: "Pure raw-to-safe event translation" },
+    { path: "src/state/session-machine.ts", change: "added", note: "Deterministic state transitions and recovery" },
+    { path: "src/game/Village.tsx", change: "added", note: "PixiJS scene and activity animation" },
+    { path: "src/features/task/TaskPanel.tsx", change: "added", note: "Repository, task, status, and approval controls" },
+    { path: "src/persistence/progression.ts", change: "added", note: "Versioned local progression schema" },
+    { path: "fixtures/demo-repo/", change: "added", note: "Safe deterministic live-demo target" },
+    { path: "tests/", change: "added", note: "Translator, state, IPC, app-server fixture, UI, and packaged smoke coverage" },
+    { path: "docs/BUILD_WEEK_EVIDENCE.md", change: "added", note: "Dated sessions, commits, decisions, and proof" },
+    { path: "docs/DEVPOST_SUBMISSION.md", change: "added", note: "Submission description and requirement traceability" },
+    { path: "docs/DEMO_SCRIPT.md", change: "added", note: "Sub-three-minute recording storyboard" },
+    { path: "docs/PRIVACY.md", change: "added", note: "Data boundary and threat model" },
+  ]}
+/>
+
+## Ordered build
+
+1. **Foundation:** pin Node 24.16.0 and pnpm 10.33.4, scaffold Electron/Vite/React/TypeScript, install the smallest dependencies, configure strict checks, and commit the planning/evidence baseline.
+2. **Deterministic core:** implement the safe event contract, session state machine, local progression schema, and exhaustive unit tests before connecting Codex.
+3. **Codex controller:** generate schemas from the installed CLI, implement stdio JSONL initialization/thread/turn handling, translate events, and test against protocol fixtures plus a real local smoke.
+4. **Product shell:** build the task panel, village state, error recovery, secure IPC, persistence, and accessibility-friendly text equivalents.
+5. **Game feel:** implement the cozy scene, resident stations, construction effects, status lighting, and completion upgrade. Animation remains a projection of state, never a timer pretending work occurred.
+6. **Demo path:** create the fixture repo and a task that reliably exercises editing and tests within the video budget. Add reset controls and predictable starting data.
+7. **Packaging and proof:** build the macOS artifact, run it against the fixture repository, capture live evidence, and repeat after every runtime-path fix.
+8. **Submission:** complete README, test instructions, privacy statement, evidence log, Devpost copy, screenshots, video script, repository sharing requirements, and `/feedback` Session ID instructions.
+
+## Failure handling
+
+- Codex missing or too old: show the detected binary/version and exact remediation; never silently switch to canned events.
+- Initialization or schema mismatch: stop the session, retain safe diagnostics locally, and show a retry action.
+- Invalid/non-repository folder: explain the requirement before spawning Codex.
+- User interruption: send `turn/interrupt`, transition to a neutral recoverable state, and grant no upgrade.
+- Approval requested: pause visible construction until a local decision is returned; never auto-approve.
+- Command/test failure: show failure state and allow Codex to continue; only the final successful completion grants progression.
+- App crash/relaunch: restore committed progression, never an in-flight privileged process.
+
+## Verification gates
+
+<Checklist
+  id="verification-gates"
+  items={[
+    { id: "unit", label: "`pnpm test` covers event sanitization, state transitions, persistence migration, and command categorization" },
+    { id: "typecheck", label: "`pnpm typecheck` passes under strict TypeScript" },
+    { id: "lint", label: "`pnpm lint` passes without ignored production paths" },
+    { id: "build", label: "`pnpm build` creates renderer and Electron outputs" },
+    { id: "e2e", label: "Automated Electron smoke selects the fixture, starts the controlled test session path, and observes completion" },
+    { id: "privacy", label: "Tests prove raw paths, prompts, command strings, output, diffs, and filenames never appear in renderer events or persisted progression" },
+    { id: "package", label: "Packaged macOS application launches on this machine with no dev server" },
+    { id: "real-codex", label: "Fresh live proof uses installed Codex app-server and the fixture repo, then verifies the on-disk change and persisted house upgrade" },
+    { id: "video-timing", label: "Dry-run demo is under 2:45, leaving margin below the three-minute judging cutoff" },
+  ]}
+/>
+
+## Judging strategy
+
+<Table
+  id="judging-map"
+  columns={["Criterion", "What the submission proves"]}
+  rows={[
+    ["Technological Implementation", "Deep Codex integration, real streamed events, safe approval boundary, tested packaged application"],
+    ["Design", "Complete coherent loop from repo selection through visible persistent completion, with polished game feel"],
+    ["Potential Impact", "Makes autonomous coding work legible and emotionally engaging for developers managing projects and agents"],
+    ["Quality of the Idea", "Turns truthful local agent activity into a persistent spatial world rather than another chat or status dashboard"],
+  ]}
+/>
+
+## Submission control
+
+The repository is the evidence package. Every material implementation milestone receives a dated commit. `docs/BUILD_WEEK_EVIDENCE.md` records the Codex thread, `/feedback` session ID, implementation decisions, live-proof commands, and the exact new work completed during the submission period.
+
+<Checklist
+  id="submission-checklist"
+  items={[
+    { id: "registered", label: "Joined OpenAI Build Week on Devpost" },
+    { id: "draft", label: "Created a Devpost draft before final-day pressure" },
+    { id: "track", label: "Selected Developer Tools as the single category" },
+    { id: "description", label: "Project description explains the problem, solution, functionality, and approach" },
+    { id: "video", label: "Public YouTube video is under three minutes and includes audio covering the demo, Codex, and GPT-5.6" },
+    { id: "repo", label: "Repository URL is public with appropriate licensing or shared with testing@devpost.com and build-week-event@openai.com" },
+    { id: "readme", label: "README contains setup, sample data, judge-testing steps, Codex collaboration, key human decisions, and GPT-5.6 contribution" },
+    { id: "feedback", label: "Submission includes the `/feedback` Codex Session ID where most core functionality was built" },
+    { id: "devtool", label: "Developer-tool submission includes installation, supported platforms, and a test path that does not require rebuilding" },
+    { id: "working-access", label: "Working project remains freely available to judges through the end of judging" },
+    { id: "english", label: "Description, video/audio or translation, README, and testing instructions are in English" },
+    { id: "ip", label: "All art, code, music, fonts, names, and third-party dependencies have documented usage rights" },
+    { id: "trademarks", label: "Video contains no unauthorized third-party trademarks, music, or copyrighted material" },
+    { id: "evidence", label: "Dated commits and Codex session evidence distinguish all Build Week work" },
+    { id: "final-proof", label: "Final packaged artifact is re-tested after the last runtime-path change" },
+    { id: "submit", label: "Final submission is completed before July 21 at 5:00 PM PT and confirmation is captured" },
+  ]}
+/>
+
+## Demo storyboard
+
+1. **0:00–0:20 — Problem and reveal:** show the calm village and explain that every house is a real project and every resident a real Codex session.
+2. **0:20–0:40 — Local trust:** choose the included demo repo, show the privacy boundary, and enter the prepared task.
+3. **0:40–1:45 — Real work:** start Codex; narrate the resident moving through planning, editing, and inspection states while the safe timeline updates.
+4. **1:45–2:10 — Result:** show tests completing, the house upgrade appearing, and the actual fixture-repo change.
+5. **2:10–2:35 — Technology:** briefly show app-server events becoming the narrow `VillageEvent` vocabulary and explain GPT-5.6's role in the semantic construction plan.
+6. **2:35–2:50 — Impact:** show the persisted village after relaunch and close on the broader multi-project town vision.
+
+## Sources of truth
+
+- Official challenge page: https://openai.devpost.com/
+- Official rules: https://openai.devpost.com/rules
+- OpenAI event page: https://openai.com/build-week/
+- Codex app-server: https://learn.chatgpt.com/docs/app-server
+- Codex SDK: https://learn.chatgpt.com/docs/codex-sdk
+
+<Callout id="working-name" tone="info">
+
+**Working name:** Codeville. Naming is reversible and must not delay the build. Before publishing, perform a collision/trademark check and rename consistently if needed.
+
+</Callout>
