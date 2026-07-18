@@ -19,6 +19,9 @@ export class BuilderActor {
   private velocity = { x: 0, y: 0 };
   private elapsed = 0;
 
+  private readonly planks = new Graphics();
+  private readonly blueprint = new Graphics();
+
   constructor(color: number) {
     const shadow = new Graphics().ellipse(0, 18, 25, 9).fill({ color: 0x173c38, alpha: 0.18 });
     const body = new Graphics();
@@ -28,7 +31,18 @@ export class BuilderActor {
     body.rect(-10, -12, 20, 4).fill(0xc9842d);
     body.rect(-10, 17, 7, 9).fill(0x58382d);
     body.rect(3, 17, 7, 9).fill(0x58382d);
-    this.container.addChild(shadow, body);
+    // Truthful props: planks appear only while the editing phase is displayed,
+    // the blueprint scroll only while reading — both driven by real events.
+    this.planks.rect(-16, -4, 32, 4).fill(0x8a5a36).stroke({ color: 0x58382d, width: 1 });
+    this.planks.rect(-14, -9, 28, 4).fill(0xa06a40).stroke({ color: 0x58382d, width: 1 });
+    this.planks.position.set(11, 2);
+    this.planks.rotation = -0.22;
+    this.planks.visible = false;
+    this.blueprint.roundRect(-9, -3, 18, 6, 3).fill(0xdfeef2).stroke({ color: 0x5c7196, width: 1.2 });
+    this.blueprint.position.set(11, 3);
+    this.blueprint.rotation = -0.35;
+    this.blueprint.visible = false;
+    this.container.addChild(shadow, body, this.planks, this.blueprint);
     const start = targets.idle;
     this.container.position.set(start.x, start.y);
   }
@@ -63,5 +77,7 @@ export class BuilderActor {
     if (!next) return;
     this.displayedPhase = next;
     this.phaseElapsedMs = 0;
+    this.planks.visible = next === 'editing';
+    this.blueprint.visible = next === 'reading' || next === 'planning';
   }
 }

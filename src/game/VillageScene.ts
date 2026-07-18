@@ -90,6 +90,8 @@ class ProjectLot {
   private readonly actor: BuilderActor;
   private readonly lantern = new Container();
   private readonly pennant = new Graphics();
+  private readonly smoke = new Container();
+  private readonly smokePuffs: Graphics[] = [];
   private currentSignature = '';
   private currentPhase: SessionPhase = 'idle';
   private pulse = 0;
@@ -127,7 +129,14 @@ class ProjectLot {
     this.pennant.poly([0, -26, 20, -20, 0, -14]).fill(0xffd875);
     this.pennant.position.set(3, -95);
     this.pennant.visible = false;
-    this.container.addChild(this.base, this.house, this.pennant, this.actor.container, this.lantern, this.signText, this.statusText, this.bubble);
+    for (let index = 0; index < 3; index += 1) {
+      const puff = new Graphics().circle(0, 0, 4 + index).fill({ color: 0xdfe8e2, alpha: 0.5 });
+      this.smokePuffs.push(puff);
+      this.smoke.addChild(puff);
+    }
+    this.smoke.position.set(56, -30);
+    this.smoke.visible = false;
+    this.container.addChild(this.base, this.house, this.smoke, this.pennant, this.actor.container, this.lantern, this.signText, this.statusText, this.bubble);
   }
 
   update(snapshot: ProjectSnapshot): void {
@@ -139,6 +148,7 @@ class ProjectLot {
     const needsYou = Boolean(snapshot.projectId) && needsYouPhases.has(snapshot.phase);
     this.lantern.visible = needsYou;
     this.pennant.visible = Boolean(snapshot.projectId) && snapshot.phase === 'reviewing';
+    this.smoke.visible = Boolean(snapshot.projectId) && snapshot.phase === 'testing';
     this.base.tint = needsYou ? 0xffe9b8 : snapshot.selected ? 0xffffff : 0xe1eadb;
     this.container.alpha = snapshot.projectId ? (snapshot.phase === 'failed' ? 0.82 : 1) : 0.48;
     const signature = `${snapshot.projectId}-${snapshot.level}-${snapshot.phase === 'completed'}`;
@@ -164,6 +174,15 @@ class ProjectLot {
     if (this.pennant.visible && this.currentPhase === 'reviewing') {
       this.pulse += deltaMs;
       this.pennant.alpha = 0.75 + Math.sin(this.pulse / 500) * 0.25;
+    }
+    if (this.smoke.visible) {
+      this.pulse += deltaMs;
+      this.smokePuffs.forEach((puff, index) => {
+        const cycle = ((this.pulse / 900) + index / 3) % 1;
+        puff.position.set(Math.sin((cycle + index) * 6) * 4, -cycle * 34);
+        puff.alpha = 0.5 * (1 - cycle);
+        puff.scale.set(0.7 + cycle * 0.8);
+      });
     }
     if (this.bubble.visible) {
       this.bubble.alpha += (1 - this.bubble.alpha) * Math.min(deltaMs / 150, 1);

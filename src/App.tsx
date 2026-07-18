@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { ApprovalDialog } from './features/task/ApprovalDialog';
 import { BatchLaunchDialog } from './features/task/BatchLaunchDialog';
@@ -8,6 +8,9 @@ import { VillageCanvas } from './game/VillageCanvas';
 import type { ApprovalRequestView, BatchLaunchProject, ConnectionProof, EnvironmentStatus, InputResponse, PendingInputView, PendingScaffoldView, ProgressionData, ProjectProgress, ProjectSelection, SessionDiffView, VillageLot } from './shared/village-events';
 import { beginSession, initialSessionState, projectProgress, reduceSession, resetSession, type SessionState } from './state/session-machine';
 import { batchLaunchProjects, updateProjectTask } from './state/project-tasks';
+import { chimeForEvent, playChime } from './game/chimes';
+
+const mutedStorageKey = 'codeville-muted';
 
 const emptyProgression: ProgressionData = {
   version: 2,
@@ -37,6 +40,8 @@ export function App() {
   const [landingError, setLandingError] = useState<string | null>(null);
   const [handoffNotice, setHandoffNotice] = useState<string | null>(null);
   const [wallMode, setWallMode] = useState(false);
+  const [muted, setMuted] = useState(() => localStorage.getItem(mutedStorageKey) === '1');
+  const mutedRef = useRef(muted);
   const [error, setError] = useState<string | null>(null);
   const [projectErrors, setProjectErrors] = useState<Record<string, string>>({});
 
@@ -58,6 +63,8 @@ export function App() {
     });
     const unsubscribeEvent = window.codeville.onVillageEvent(({ projectId, event }) => {
       setSessions((current) => ({ ...current, [projectId]: reduceSession(current[projectId] ?? initialSessionState, event) }));
+      const chime = chimeForEvent(event);
+      if (chime && !mutedRef.current) playChime(chime);
       if (event.type === 'session_completed') void window.codeville.getProgression().then(setProgression);
       if (event.type === 'diff_ready') {
         void window.codeville.getPendingScaffold(projectId).then((view) => {
@@ -109,6 +116,8 @@ export function App() {
     });
     return () => { unsubscribeEvent(); unsubscribeApproval(); unsubscribeInput(); unsubscribeFocus(); };
   }, []);
+
+  useEffect(() => { mutedRef.current = muted; localStorage.setItem(mutedStorageKey, muted ? '1' : '0'); }, [muted]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -365,6 +374,7 @@ export function App() {
       <header className="topbar">
         <div className="brand-lockup"><span className="brand-mark" aria-hidden="true">C</span><div><strong>Codeville</strong><small>A living world for your coding agents</small></div></div>
         <div className="topbar-status">
+          <button className="wall-toggle" onClick={() => setMuted((current) => !current)} title={muted ? 'Unmute chimes' : 'Mute chimes'} aria-label={muted ? 'Unmute chimes' : 'Mute chimes'}>{muted ? 'Muted' : 'Chimes on'}</button>
           <button className="wall-toggle" onClick={() => { setWallMode((current) => { void window.codeville.setWallMode(!current); return !current; }); }} title="Toggle wall mode (W) — safe fleet display, desk hidden">{wallMode ? 'Exit wall mode' : 'Wall mode'}</button>
           <span className={`status-dot ${environment?.codexAvailable ? 'ready' : 'offline'}`} /><span>{environment?.codexAvailable ? environment.model : 'Codex unavailable'}</span>{environment?.codexVersion && <span className="version-tag">{environment.codexVersion}</span>}
         </div>
