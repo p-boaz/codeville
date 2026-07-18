@@ -8,10 +8,4 @@ export default defineConfig({
   workers: 1,
   fullyParallel: false,
   reporter: [['list']],
-  webServer: {
-    command: 'pnpm dev:renderer',
-    url: 'http://127.0.0.1:5173',
-    reuseExistingServer: true,
-    timeout: 30_000,
-  },
 });

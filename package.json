@@ -2,11 +2,12 @@
   "name": "codeville",
   "version": "0.1.0",
   "private": true,
+  "author": "Codeville contributors",
   "description": "A living desktop village driven by real Codex sessions.",
   "main": "dist-electron/main.cjs",
   "type": "module",
   "engines": {
-    "node": ">=24 <25"
+    "node": "24.x"
   },
   "packageManager": "pnpm@10.33.4",
   "scripts": {
@@ -17,7 +18,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "pnpm build:electron && playwright test",
+    "test:e2e": "pnpm build && playwright test",
+    "test:packaged": "CODEVILLE_PACKAGED_APP=release/mac-arm64/Codeville.app/Contents/MacOS/Codeville playwright test",
     "build:renderer": "vite build",
     "build:electron": "tsup electron/main.ts electron/preload.ts --format cjs --platform node --external electron --out-dir dist-electron",
     "build": "pnpm build:renderer && pnpm build:electron",
@@ -65,6 +67,7 @@
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
+      "icon": "assets/icon.icns",
       "target": [
         "dir"
       ]

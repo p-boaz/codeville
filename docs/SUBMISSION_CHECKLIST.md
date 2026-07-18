@@ -1,0 +1,77 @@
+# OpenAI Build Week submission checklist
+
+Source of truth: [challenge overview](https://openai.devpost.com/), [FAQ](https://openai.devpost.com/details/faqs), and [official rules](https://openai.devpost.com/rules). Deadline: **Tuesday, July 21, 2026 at 5:00 PM PT**. Devpost does not permit changes after the deadline.
+
+## Eligibility and entry
+
+- [ ] Entrant is registered/joined on Devpost.
+- [ ] Entrant and every team member meet age, residency, account, employer-policy, and other official-rule eligibility requirements.
+- [ ] Team membership and contributor names are final and accurately disclosed.
+- [x] Track selected: **Developer Tools**; one track only.
+- [ ] Review official rules once more immediately before submission in case Devpost posts a clarification.
+
+## Working project
+
+- [x] Real project uses Codex with GPT-5.6.
+- [x] Working desktop product, not a mock or slideware.
+- [x] Included sample data/test fixture.
+- [x] Judge can exercise the product without rebuilding it.
+- [x] Installation instructions and supported platforms documented.
+- [x] Privacy, sandbox, and approval behavior documented.
+- [x] Automated unit, production-build, and real-session acceptance proof.
+- [x] Persistent progression verified across app relaunch.
+- [ ] Produce final unsigned macOS `.app` archive and upload it to a stable, no-login release URL or Devpost attachment.
+- [ ] Test the downloaded archive on a clean Apple-silicon macOS account before submission.
+- [ ] Keep the working build available free of charge and unrestricted through the end of the official judging period.
+
+## Repository
+
+- [x] README includes setup, sample, running, test, architecture, supported platform, Codex acceleration, GPT-5.6 usage, and human decisions.
+- [x] Relevant MIT license included.
+- [x] Pre-existing code, generated bindings, dependencies, and third-party work disclosed.
+- [x] Timestamped Build Week evidence included.
+- [x] No secrets, local session logs, user data, build products, or private paths committed.
+- [ ] Choose publication mode:
+  - [ ] **Public repository:** publish with MIT license and verify logged-out access; or
+  - [ ] **Private repository:** invite both `testing@devpost.com` and `build-week-event@openai.com`, then verify access.
+- [ ] Freeze and tag the exact submitted commit (recommended: `v0.1.0-build-week`).
+- [ ] Replace every `[ADD ...]` placeholder in `docs/DEVPOST_SUBMISSION.md`.
+
+## Demo video
+
+- [x] Complete sub-three-minute shot list and narration prepared.
+- [ ] Record the real happy path with spoken audio.
+- [ ] Explicitly say how both Codex **and** GPT-5.6 were used.
+- [ ] Show real project operation, completion, and relaunch persistence.
+- [ ] Keep duration under 3:00 and avoid private information/third-party copyrighted media.
+- [ ] Upload to YouTube as **Public**.
+- [ ] Verify 1080p, audio, captions, duration, and logged-out playback.
+- [ ] Add public YouTube URL to Devpost and submission draft.
+
+## Devpost form
+
+- [x] Project name, tagline, track, description, build story, testing path, and human decisions drafted.
+- [ ] Add repository URL.
+- [ ] Add packaged test-build URL/attachment and concise testing instructions.
+- [ ] Add public YouTube URL.
+- [ ] Add screenshots with no private data; include upgraded village and live-work state.
+- [ ] Run `/feedback` in primary build thread `019f7398-bb25-74f2-9630-49f64427b392`.
+- [ ] Paste the exact `/feedback` Codex Session ID into Devpost.
+- [ ] Disclose all team members, open-source dependencies, generated bindings, and any other third-party material.
+- [ ] Preview every field and open every URL in a logged-out/private browser.
+- [ ] Submit before **July 21, 2026 at 5:00 PM PT**; save confirmation page/email and screenshots.
+
+## Quality against judging criteria
+
+- [x] **Technological implementation:** real app-server protocol, GPT-5.6 execution, safe event translation, approvals, persistence, unit and acceptance tests.
+- [x] **Design:** coherent native experience, procedural world, understandable phases, completion state, judge-ready fixture.
+- [x] **Potential impact:** makes agent work legible without requiring constant log reading or leaking private implementation detail.
+- [x] **Idea quality:** agent activity becomes an evolving spatial world rather than another terminal/dashboard wrapper.
+
+## Final risk checks
+
+- [ ] Confirm the Codex account used by judges can access `gpt-5.6-sol`; document a contact/fallback if model entitlement fails.
+- [ ] Confirm the unsigned macOS distribution flow is acceptable; notarize/sign if credentials are available.
+- [ ] Perform a deeper name/legal clearance before commercial use. A preliminary web search found an unrelated software-services business using “Codeville”; the hackathon entry should not imply affiliation.
+- [ ] Do not claim OpenAI sponsorship, endorsement, or ownership of Codeville.
+- [ ] Compare the final live Devpost form against this checklist—form fields are authoritative.

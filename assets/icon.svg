@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Codeville workshop icon">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#173f3a"/>
+      <stop offset="1" stop-color="#0d2928"/>
+    </linearGradient>
+    <linearGradient id="roof" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#efb665"/>
+      <stop offset="1" stop-color="#c56d42"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="34" stdDeviation="30" flood-color="#071b19" flood-opacity=".52"/>
+    </filter>
+  </defs>
+  <rect x="36" y="36" width="952" height="952" rx="224" fill="url(#sky)"/>
+  <circle cx="760" cy="260" r="92" fill="#f7d78a" opacity=".96"/>
+  <path d="M145 723 512 512l367 211-367 212z" fill="#28564b"/>
+  <path d="M210 718 512 544l302 174-302 174z" fill="#3d7158"/>
+  <g filter="url(#shadow)">
+    <path d="m318 454 194-112 194 112-194 112z" fill="url(#roof)"/>
+    <path d="m350 474 162 93v218l-162-93z" fill="#d8945c"/>
+    <path d="m674 474-162 93v218l162-93z" fill="#b96446"/>
+    <path d="m512 342 194 112-40 24-154-89-154 89-40-24z" fill="#f5c879"/>
+    <path d="M450 750v-126l62-36 62 36v126l-62 35z" fill="#173a35"/>
+    <path d="m383 560 72 41v80l-72-41z" fill="#f4d587"/>
+    <path d="m569 601 72-41v80l-72 41z" fill="#f4d587"/>
+    <path d="M493 310h38v71h-38z" fill="#7d4537"/>
+    <path d="m531 310 79 45-31 18-48-28z" fill="#f2c26d"/>
+  </g>
+  <path d="M194 782c98 52 173 60 248 24M830 782c-98 52-173 60-248 24" fill="none" stroke="#8eb57c" stroke-linecap="round" stroke-width="22" opacity=".7"/>
+</svg>

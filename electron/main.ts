@@ -15,11 +15,13 @@ import type {
 import type { ServerNotification } from './codex/generated/ServerNotification';
 import type { ServerRequest } from './codex/generated/ServerRequest';
 import { AppServerClient } from './codex/app-server-client';
+import { resolveCodexBinary } from './codex/resolve-binary';
 import { ProgressionStore } from './progression-store';
 
 const executeFile = promisify(execFile);
 const model = 'gpt-5.6-sol';
 const isDevelopment = !app.isPackaged;
+const useDevelopmentRenderer = isDevelopment && process.env.CODEVILLE_E2E !== '1';
 
 if (process.env.CODEVILLE_USER_DATA_DIR) {
   app.setPath('userData', process.env.CODEVILLE_USER_DATA_DIR);
@@ -47,7 +49,7 @@ function createWindow(): void {
     },
   });
 
-  if (isDevelopment) void window.loadURL('http://127.0.0.1:5173');
+  if (useDevelopmentRenderer) void window.loadURL('http://127.0.0.1:5173');
   else void window.loadFile(join(__dirname, '../dist/index.html'));
 
   window.on('closed', () => {
@@ -56,8 +58,12 @@ function createWindow(): void {
 }
 
 async function getEnvironment(): Promise<EnvironmentStatus> {
+  const codexBinary = resolveCodexBinary();
+  if (!codexBinary) {
+    return { codexAvailable: false, codexVersion: null, model, platform: process.platform };
+  }
   try {
-    const { stdout } = await executeFile('codex', ['--version'], { timeout: 5_000 });
+    const { stdout } = await executeFile(codexBinary, ['--version'], { timeout: 5_000 });
     return {
       codexAvailable: true,
       codexVersion: stdout.trim(),
@@ -159,7 +165,12 @@ function respondToApproval(requestId: string, decision: ApprovalDecision): void 
 
 async function ensureClient(): Promise<AppServerClient> {
   if (client) return client;
+  const codexBinary = resolveCodexBinary();
+  if (!codexBinary) {
+    throw new Error('Codex CLI was not found. Install Codex, sign in, and reopen Codeville.');
+  }
   const next = new AppServerClient({
+    binary: codexBinary,
     onNotification: sendVillageEvents,
     onServerRequest: handleServerRequest,
     onDiagnostic: (message) => console.warn(`[codex] ${message}`),

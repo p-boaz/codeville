@@ -1,19 +1,28 @@
 import { execFile } from 'node:child_process';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 
 import { _electron as electron, expect, test } from '@playwright/test';
 
 const executeFile = promisify(execFile);
 
+function launchOptions(userData: string) {
+  const packagedApp = process.env.CODEVILLE_PACKAGED_APP;
+  return {
+    ...(packagedApp ? { executablePath: resolve(packagedApp) } : { args: ['.'] }),
+    env: {
+      ...process.env,
+      CODEVILLE_E2E: '1',
+      CODEVILLE_USER_DATA_DIR: userData,
+    },
+  };
+}
+
 test('completes a real Codex improvement and persists the village upgrade', async () => {
   const userData = await mkdtemp(join(tmpdir(), 'codeville-e2e-'));
-  const electronApp = await electron.launch({
-    args: ['.'],
-    env: { ...process.env, CODEVILLE_USER_DATA_DIR: userData },
-  });
+  let electronApp = await electron.launch(launchOptions(userData));
 
   try {
     const page = await electronApp.firstWindow();
@@ -41,6 +50,12 @@ test('completes a real Codex improvement and persists the village upgrade', asyn
     expect(progression.projects[demoProject]?.level).toBe(1);
 
     await page.screenshot({ path: 'test-results/codeville-completed.png', fullPage: true });
+
+    await electronApp.close();
+    electronApp = await electron.launch(launchOptions(userData));
+    const relaunchedPage = await electronApp.firstWindow();
+    await relaunchedPage.getByRole('button', { name: /judge-ready demo project/i }).click();
+    await expect(relaunchedPage.getByLabel('1 completed sessions')).toBeVisible();
   } finally {
     await electronApp.close();
   }
