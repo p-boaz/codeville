@@ -36,6 +36,7 @@ export function App() {
   const [landingBusy, setLandingBusy] = useState(false);
   const [landingError, setLandingError] = useState<string | null>(null);
   const [handoffNotice, setHandoffNotice] = useState<string | null>(null);
+  const [wallMode, setWallMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [projectErrors, setProjectErrors] = useState<Record<string, string>>({});
 
@@ -109,6 +110,27 @@ export function App() {
     return () => { unsubscribeEvent(); unsubscribeApproval(); unsubscribeInput(); unsubscribeFocus(); };
   }, []);
 
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+      if (event.key === 'w' || event.key === 'W') {
+        setWallMode((current) => {
+          void window.codeville.setWallMode(!current);
+          return !current;
+        });
+      }
+      if (['1', '2', '3', '4', '5'].includes(event.key)) {
+        const slot = (Number(event.key) - 1) as VillageLot['slot'];
+        setSelectedSlot(slot);
+        setProgression((current) => { setSelectedProjectId(current.lots[slot].projectId); return current; });
+      }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   const selectedLot = progression.lots[selectedSlot];
   const selectedProject = useMemo<ProjectSelection | null>(() => {
     if (!selectedLot.projectId || !selectedLot.path || !selectedLot.name) return null;
@@ -143,6 +165,32 @@ export function App() {
     try { setSessionDiff(await window.codeville.getSessionDiff(selectedProjectId)); }
     catch (cause) { setLandingError(cause instanceof Error ? cause.message : 'The diff could not be loaded.'); }
     finally { setLandingBusy(false); }
+  }
+
+  async function addOrder(task: string) {
+    if (!selectedProjectId) return;
+    setError(null);
+    try { setProgression(await window.codeville.addWorkOrder(selectedProjectId, task)); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'The work order could not be added.'); }
+  }
+
+  async function deleteOrder(orderId: string) {
+    if (!selectedProjectId) return;
+    try { setProgression(await window.codeville.deleteWorkOrder(selectedProjectId, orderId)); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'The work order could not be removed.'); }
+  }
+
+  async function startNextOrder() {
+    if (!selectedProject || !selectedProjectId) return;
+    const order = progression.projects[selectedProjectId]?.queue[0];
+    if (!order) return;
+    setError(null);
+    try {
+      await startProject(selectedProject, order.task);
+      setProgression(await window.codeville.deleteWorkOrder(selectedProjectId, order.id));
+    } catch {
+      setError('The next work order could not start. It stays queued; review the workshop error.');
+    }
   }
 
   async function landSession(action: 'apply' | 'keep' | 'discard') {
@@ -313,19 +361,22 @@ export function App() {
   }));
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell${wallMode ? ' wall-mode' : ''}`}>
       <header className="topbar">
         <div className="brand-lockup"><span className="brand-mark" aria-hidden="true">C</span><div><strong>Codeville</strong><small>A living world for your coding agents</small></div></div>
-        <div className="topbar-status"><span className={`status-dot ${environment?.codexAvailable ? 'ready' : 'offline'}`} /><span>{environment?.codexAvailable ? environment.model : 'Codex unavailable'}</span>{environment?.codexVersion && <span className="version-tag">{environment.codexVersion}</span>}</div>
+        <div className="topbar-status">
+          <button className="wall-toggle" onClick={() => { setWallMode((current) => { void window.codeville.setWallMode(!current); return !current; }); }} title="Toggle wall mode (W) — safe fleet display, desk hidden">{wallMode ? 'Exit wall mode' : 'Wall mode'}</button>
+          <span className={`status-dot ${environment?.codexAvailable ? 'ready' : 'offline'}`} /><span>{environment?.codexAvailable ? environment.model : 'Codex unavailable'}</span>{environment?.codexVersion && <span className="version-tag">{environment.codexVersion}</span>}
+        </div>
       </header>
       <section className="workspace">
-        <ProjectRail progression={progression} sessions={sessions} tasks={tasks} selectedSlot={selectedSlot} batchSelected={batchSelected} canStartAll={canStartAll} canStartSelected={canStartSelected} onSelect={selectLot} onToggleBatch={(projectId) => setBatchSelected((current) => { const next = new Set(current); if (next.has(projectId)) next.delete(projectId); else next.add(projectId); return next; })} onStartAll={reviewAllDemo} onStartSelected={reviewSelected} />
+        {!wallMode && <ProjectRail progression={progression} sessions={sessions} tasks={tasks} selectedSlot={selectedSlot} batchSelected={batchSelected} canStartAll={canStartAll} canStartSelected={canStartSelected} onSelect={selectLot} onToggleBatch={(projectId) => setBatchSelected((current) => { const next = new Set(current); if (next.has(projectId)) next.delete(projectId); else next.add(projectId); return next; })} onStartAll={reviewAllDemo} onStartSelected={reviewSelected} />}
         <div className="village-stage">
-          <VillageCanvas projects={snapshots} />
+          <VillageCanvas projects={snapshots} onSelectSlot={wallMode ? undefined : (slot) => selectLot(slot, progression.lots[slot].projectId)} />
           <div className="stage-heading"><span className="eyebrow">Willow Ward · Five live lots</span><h1>{allDemo ? 'The whole village is awake' : 'Your agents, building side by side'}</h1><p>Every movement comes from a real, project-scoped Codex event.</p></div>
           {!progression.lots.some((lot) => lot.projectId) && <div className="empty-village-cta"><strong>Build a five-project demo village</strong><span>Five isolated repositories. Five real Codex builders. One living map.</span><button onClick={useDemoVillage}>Create demo village <span>→</span></button></div>}
         </div>
-        <TaskPanel environment={environment} project={selectedProject} task={task} session={session} progress={progress} sessionActive={sessionActive} pendingInput={pendingInput} inputSubmitting={inputSubmitting} inputError={inputError} pendingScaffold={selectedProjectId ? scaffoldViews[selectedProjectId] ?? null : null} sessionDiff={sessionDiff} landingBusy={landingBusy} landingError={landingError} onLoadDiff={loadDiff} onCloseDiff={() => setSessionDiff(null)} onApply={() => landSession('apply')} onKeep={() => landSession('keep')} onDiscard={() => landSession('discard')} proof={proof} handoffNotice={handoffNotice} error={(selectedProjectId && projectErrors[selectedProjectId]) || error} onTaskChange={(value) => selectedProjectId && setTasks((current) => updateProjectTask(current, selectedProjectId, value))} onChooseProject={chooseProject} onUseDemoVillage={useDemoVillage} onStart={startSession} onInterrupt={interruptSession} onSubmitInput={submitInput} onHandoff={handoffToGhostty} onReclaim={reclaimFromGhostty} onNewTask={newTask} onResetVillage={resetVillage} />
+        {!wallMode && <TaskPanel environment={environment} project={selectedProject} task={task} session={session} progress={progress} sessionActive={sessionActive} pendingInput={pendingInput} inputSubmitting={inputSubmitting} inputError={inputError} pendingScaffold={selectedProjectId ? scaffoldViews[selectedProjectId] ?? null : null} sessionDiff={sessionDiff} landingBusy={landingBusy} landingError={landingError} onLoadDiff={loadDiff} onCloseDiff={() => setSessionDiff(null)} onApply={() => landSession('apply')} onKeep={() => landSession('keep')} onDiscard={() => landSession('discard')} onAddOrder={addOrder} onDeleteOrder={deleteOrder} onStartNextOrder={startNextOrder} proof={proof} handoffNotice={handoffNotice} error={(selectedProjectId && projectErrors[selectedProjectId]) || error} onTaskChange={(value) => selectedProjectId && setTasks((current) => updateProjectTask(current, selectedProjectId, value))} onChooseProject={chooseProject} onUseDemoVillage={useDemoVillage} onStart={startSession} onInterrupt={interruptSession} onSubmitInput={submitInput} onHandoff={handoffToGhostty} onReclaim={reclaimFromGhostty} onNewTask={newTask} onResetVillage={resetVillage} />}
       </section>
       {approval && <ApprovalDialog request={approval} onDecision={respondToApproval} />}
       {pendingBatch && <BatchLaunchDialog projects={pendingBatch} onCancel={() => setPendingBatch(null)} onConfirm={confirmBatch} />}

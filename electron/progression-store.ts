@@ -3,7 +3,9 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 import { resumablePendingInput } from '../src/codex/debrief';
-import type { CompletionDebrief, ProgressionData, ProjectSelection, SafePendingInput, VillageLot } from '../src/shared/village-events';
+import type { CompletionDebrief, ProgressionData, ProjectSelection, SafePendingInput, SessionRecord, VillageLot } from '../src/shared/village-events';
+
+const historyCap = 50;
 
 type ProgressionV1 = {
   version: 1;
@@ -77,6 +79,8 @@ export class ProgressionStore {
       handoffAt: null,
       safeEventCount: 0,
       lastTurnStartedAt: null,
+      history: [],
+      queue: [],
     };
     Object.assign(data.projects[projectId], {
       repositoryPath: selection.path,
@@ -88,14 +92,14 @@ export class ProgressionStore {
     });
   }
 
-  async recordCompletion(projectId: string, at: string, debrief: CompletionDebrief, safeEventCount?: number, turnStartedAt?: string | null): Promise<ProgressionData> {
+  async recordCompletion(projectId: string, at: string, debrief: CompletionDebrief, safeEventCount?: number, turnStartedAt?: string | null, sessionId?: string | null): Promise<ProgressionData> {
     return this.enqueueMutation(async () => {
     const data = await this.readNow();
     const current = data.projects[projectId];
     if (!current) throw new Error('The completed project is not assigned to this village');
+    // Levels are earned by LANDED work (recordLanding), not by completion claims.
     data.projects[projectId] = {
       ...current,
-      level: current.level + 1,
       completedSessions: current.completedSessions + 1,
       lastCompletedAt: at,
       lastDebrief: debrief,
@@ -104,7 +108,69 @@ export class ProgressionStore {
       handoffAt: null,
       ...(safeEventCount === undefined ? {} : { safeEventCount }),
       ...(turnStartedAt === undefined ? {} : { lastTurnStartedAt: turnStartedAt }),
+      history: appendHistory(current.history, {
+        sessionId: sessionId ?? 'unknown',
+        startedAt: turnStartedAt ?? null,
+        endedAt: at,
+        outcome: 'completed',
+        filesChanged: 0,
+        insertions: 0,
+        deletions: 0,
+        testsPassed: null,
+        durationMs: null,
+        landing: null,
+        wallLanded: debrief.landed,
+      }),
     };
+    await this.write(data);
+    return data;
+    });
+  }
+
+  /** Attach verified diff/telemetry facts to a session's ledger row once the scaffold is sealed. */
+  async updateSessionStats(projectId: string, sessionId: string, stats: Pick<SessionRecord, 'filesChanged' | 'insertions' | 'deletions' | 'testsPassed' | 'durationMs'>): Promise<ProgressionData> {
+    return this.enqueueMutation(async () => {
+    const data = await this.readNow();
+    const record = data.projects[projectId]?.history.find((entry) => entry.sessionId === sessionId);
+    if (record) { Object.assign(record, stats); await this.write(data); }
+    return data;
+    });
+  }
+
+  /** The landing verb is what earns a level: applied and kept count, discarded does not. */
+  async recordLanding(projectId: string, sessionId: string, landing: 'applied' | 'kept' | 'discarded'): Promise<ProgressionData> {
+    return this.enqueueMutation(async () => {
+    const data = await this.readNow();
+    const current = data.projects[projectId];
+    if (!current) throw new Error('The project is not assigned to this village');
+    const record = current.history.find((entry) => entry.sessionId === sessionId);
+    if (record) record.landing = landing;
+    if (landing !== 'discarded') current.level += 1;
+    await this.write(data);
+    return data;
+    });
+  }
+
+  async addWorkOrder(projectId: string, task: string): Promise<ProgressionData> {
+    return this.enqueueMutation(async () => {
+    const data = await this.readNow();
+    const current = data.projects[projectId];
+    if (!current) throw new Error('The project is not assigned to this village');
+    const trimmed = task.trim();
+    if (!trimmed) throw new Error('Describe the work order before adding it');
+    if (current.queue.length >= 20) throw new Error('This workshop already has 20 queued orders');
+    current.queue.push({ id: randomUUID(), task: trimmed.slice(0, 2_000), createdAt: new Date().toISOString() });
+    await this.write(data);
+    return data;
+    });
+  }
+
+  async deleteWorkOrder(projectId: string, orderId: string): Promise<ProgressionData> {
+    return this.enqueueMutation(async () => {
+    const data = await this.readNow();
+    const current = data.projects[projectId];
+    if (!current) throw new Error('The project is not assigned to this village');
+    current.queue = current.queue.filter((order) => order.id !== orderId);
     await this.write(data);
     return data;
     });
@@ -118,8 +184,36 @@ export class ProgressionStore {
     return this.updateConversation(projectId, { lastThreadId: threadId, conversationStatus: 'waiting', pendingInput, handoffAt: null, safeEventCount, lastTurnStartedAt: turnStartedAt });
   }
 
-  async recordNeedsReview(projectId: string, threadId: string, safeEventCount = 0, turnStartedAt: string | null = null): Promise<ProgressionData> {
-    return this.updateConversation(projectId, { lastThreadId: threadId, conversationStatus: 'needs_review', pendingInput: null, handoffAt: null, safeEventCount, lastTurnStartedAt: turnStartedAt });
+  async recordNeedsReview(projectId: string, threadId: string, safeEventCount = 0, turnStartedAt: string | null = null, sessionId: string | null = null): Promise<ProgressionData> {
+    return this.enqueueMutation(async () => {
+    const data = await this.readNow();
+    const current = data.projects[projectId];
+    if (!current) throw new Error('The project is not assigned to this village');
+    data.projects[projectId] = {
+      ...current,
+      lastThreadId: threadId,
+      conversationStatus: 'needs_review',
+      pendingInput: null,
+      handoffAt: null,
+      safeEventCount,
+      lastTurnStartedAt: turnStartedAt,
+      history: appendHistory(current.history, {
+        sessionId: sessionId ?? 'unknown',
+        startedAt: turnStartedAt,
+        endedAt: new Date().toISOString(),
+        outcome: 'needs_review',
+        filesChanged: 0,
+        insertions: 0,
+        deletions: 0,
+        testsPassed: null,
+        durationMs: null,
+        landing: null,
+        wallLanded: null,
+      }),
+    };
+    await this.write(data);
+    return data;
+    });
   }
 
   async recordExternal(projectId: string, at: string): Promise<ProgressionData> {
@@ -181,8 +275,22 @@ export function validateProgression(value: unknown): value is ProgressionData {
     (project.pendingInput === undefined || project.pendingInput === null || validatePendingInput(project.pendingInput)) &&
     (project.handoffAt === undefined || project.handoffAt === null || typeof project.handoffAt === 'string') &&
     Number.isInteger(project.safeEventCount ?? 0) && (project.safeEventCount ?? 0) >= 0 &&
-    (project.lastTurnStartedAt === undefined || project.lastTurnStartedAt === null || typeof project.lastTurnStartedAt === 'string')
+    (project.lastTurnStartedAt === undefined || project.lastTurnStartedAt === null || typeof project.lastTurnStartedAt === 'string') &&
+    (project.history === undefined || (Array.isArray(project.history) && project.history.every(validateSessionRecord))) &&
+    (project.queue === undefined || (Array.isArray(project.queue) && project.queue.every((order) => order && typeof order.id === 'string' && typeof order.task === 'string' && typeof order.createdAt === 'string')))
   );
+}
+
+function validateSessionRecord(record: SessionRecord): boolean {
+  return Boolean(record && typeof record.sessionId === 'string' && typeof record.endedAt === 'string' &&
+    ['completed', 'needs_review'].includes(record.outcome) &&
+    Number.isInteger(record.filesChanged) && Number.isInteger(record.insertions) && Number.isInteger(record.deletions) &&
+    (record.landing === null || ['applied', 'kept', 'discarded'].includes(record.landing)) &&
+    (record.wallLanded === null || (typeof record.wallLanded === 'string' && record.wallLanded.length <= 96)));
+}
+
+function appendHistory(history: SessionRecord[], record: SessionRecord): SessionRecord[] {
+  return [...history, record].slice(-historyCap);
 }
 
 function validateProgressionV1(value: unknown): value is ProgressionV1 {
@@ -196,7 +304,7 @@ function migrateProgression(value: ProgressionV1): ProgressionData {
   for (const [index, [path, prior]] of Object.entries(value.projects).slice(0, 5).entries()) {
     const projectId = randomUUID();
     data.lots[index] = { slot: index as VillageLot['slot'], projectId, path, name: path.split(/[\\/]/).filter(Boolean).at(-1) ?? 'Migrated project', isDemo: false };
-    data.projects[projectId] = { projectId, repositoryPath: path, repositoryName: data.lots[index].name!, isDemo: false, ...prior, lastDebrief: null, lastThreadId: null, conversationStatus: 'idle', pendingInput: null, handoffAt: null, safeEventCount: 0, lastTurnStartedAt: null };
+    data.projects[projectId] = { projectId, repositoryPath: path, repositoryName: data.lots[index].name!, isDemo: false, ...prior, lastDebrief: null, lastThreadId: null, conversationStatus: 'idle', pendingInput: null, handoffAt: null, safeEventCount: 0, lastTurnStartedAt: null, history: [], queue: [] };
   }
   return data;
 }
@@ -215,6 +323,8 @@ function normalizeProgression(data: ProgressionData, restoreInterruptedNative = 
     if (project.handoffAt === undefined) { project.handoffAt = null; changed = true; }
     if (project.safeEventCount === undefined) { project.safeEventCount = 0; changed = true; }
     if (project.lastTurnStartedAt === undefined) { project.lastTurnStartedAt = null; changed = true; }
+    if (!Array.isArray(project.history)) { project.history = []; changed = true; }
+    if (!Array.isArray(project.queue)) { project.queue = []; changed = true; }
     if (restoreInterruptedNative && project.pendingInput?.source === 'native') {
       project.pendingInput = resumablePendingInput();
       project.conversationStatus = 'waiting';

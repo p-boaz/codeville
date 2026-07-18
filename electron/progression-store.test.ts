@@ -18,7 +18,9 @@ describe('ProgressionStore', () => {
     });
     const value = await store.read();
     expect(value.lots[0].projectId).toBe(project.projectId);
-    expect(value.projects[project.projectId]).toMatchObject({ level: 1, completedSessions: 1 });
+    expect(value.projects[project.projectId]).toMatchObject({ level: 0, completedSessions: 1 });
+    await store.recordLanding(project.projectId, 'session-a', 'applied');
+    expect((await store.read()).projects[project.projectId]).toMatchObject({ level: 1 });
     expect(await readFile(join(directory, 'progression.json'), 'utf8')).toContain('"version": 2');
     expect((await stat(join(directory, 'progression.json'))).mode & 0o777).toBe(0o600);
   });
@@ -48,7 +50,8 @@ describe('ProgressionStore', () => {
     const directory = await mkdtemp(join(tmpdir(), 'codeville-reopen-'));
     const store = new ProgressionStore(directory);
     const graphletter = await store.assignProject({ path: '/projects/graphletter', name: 'graphletter', slot: 0, isDemo: false });
-    await store.recordCompletion(graphletter.projectId, '2026-07-18T00:00:00.000Z', { landed: 'Graph view improved.', followUp: 'No follow-up recommended.', followUpRecommended: false });
+    await store.recordCompletion(graphletter.projectId, '2026-07-18T00:00:00.000Z', { landed: 'Graph view improved.', followUp: 'No follow-up recommended.', followUpRecommended: false }, 3, null, 'session-g');
+    await store.recordLanding(graphletter.projectId, 'session-g', 'applied');
     await store.assignProject({ path: '/projects/kalshi-mlb', name: 'kalshi-mlb', slot: 0, isDemo: false });
     const reopened = await store.assignProject({ path: '/projects/graphletter', name: 'graphletter', slot: 2, isDemo: false });
     const value = await store.read();
@@ -119,8 +122,34 @@ describe('ProgressionStore', () => {
     const project = await store.assignProject({ path: '/safe/review', name: 'Review', slot: 0, isDemo: true });
     await store.recordNeedsReview(project.projectId, 'thread-review');
     expect((await store.read()).projects[project.projectId]).toMatchObject({ level: 0, completedSessions: 0, conversationStatus: 'needs_review' });
-    await store.recordCompletion(project.projectId, '2026-07-18T03:00:00.000Z', { landed: 'Checks pass.', followUp: 'No follow-up recommended.', followUpRecommended: false });
-    expect((await store.read()).projects[project.projectId]).toMatchObject({ level: 1, completedSessions: 1, conversationStatus: 'idle' });
+    await store.recordCompletion(project.projectId, '2026-07-18T03:00:00.000Z', { landed: 'Checks pass.', followUp: 'No follow-up recommended.', followUpRecommended: false }, 5, '2026-07-18T02:58:00.000Z', 'session-r');
+    expect((await store.read()).projects[project.projectId]).toMatchObject({ level: 0, completedSessions: 1, conversationStatus: 'idle' });
+    const history = (await store.read()).projects[project.projectId].history;
+    expect(history).toHaveLength(2);
+    expect(history[0]).toMatchObject({ outcome: 'needs_review', landing: null });
+    expect(history[1]).toMatchObject({ sessionId: 'session-r', outcome: 'completed', wallLanded: 'Checks pass.' });
+    await store.updateSessionStats(project.projectId, 'session-r', { filesChanged: 2, insertions: 10, deletions: 1, testsPassed: true, durationMs: 90_000 });
+    await store.recordLanding(project.projectId, 'session-r', 'kept');
+    const landed = (await store.read()).projects[project.projectId];
+    expect(landed.level).toBe(1);
+    expect(landed.history[1]).toMatchObject({ filesChanged: 2, testsPassed: true, landing: 'kept' });
+    await store.recordLanding(project.projectId, 'session-x', 'discarded');
+    expect((await store.read()).projects[project.projectId].level).toBe(1);
+  });
+
+  it('persists work orders per project and removes them individually', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'codeville-orders-'));
+    const store = new ProgressionStore(directory);
+    const project = await store.assignProject({ path: '/safe/orders', name: 'Orders', slot: 0, isDemo: false });
+    await store.addWorkOrder(project.projectId, 'Fix the export bug');
+    const data = await store.addWorkOrder(project.projectId, 'Refresh the README');
+    const queue = data.projects[project.projectId].queue;
+    expect(queue.map((order) => order.task)).toEqual(['Fix the export bug', 'Refresh the README']);
+    const restored = await new ProgressionStore(directory).read();
+    expect(restored.projects[project.projectId].queue).toHaveLength(2);
+    const afterDelete = await store.deleteWorkOrder(project.projectId, queue[0].id);
+    expect(afterDelete.projects[project.projectId].queue.map((order) => order.task)).toEqual(['Refresh the README']);
+    await expect(store.addWorkOrder(project.projectId, '   ')).rejects.toThrow(/Describe the work order/);
   });
 
   it('serializes concurrent sibling updates without losing either thread or completion', async () => {

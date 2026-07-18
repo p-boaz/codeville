@@ -48,6 +48,7 @@ const pendingInputs = new Map<string, { request: Extract<ServerRequest, { method
 const approvalQueue: string[] = [];
 let visibleApprovalId: string | null = null;
 let environmentCache: EnvironmentStatus | null = null;
+let wallModeActive = false;
 
 function createWindow(): void {
   window = new BrowserWindow({
@@ -107,7 +108,7 @@ function sendVillageEvents(notification: ServerNotification): void {
     if (event.type === 'tests_failed') runtime.testsPassed = false;
     if (event.type === 'session_completed') {
       runtime.turnId = null;
-      void store.recordCompletion(runtime.projectId, event.at, event.debrief, runtime.safeEventCount, runtime.turnStartedAt).then(async () => {
+      void store.recordCompletion(runtime.projectId, event.at, event.debrief, runtime.safeEventCount, runtime.turnStartedAt, runtime.sessionId ?? null).then(async () => {
         window?.webContents.send('village:event', { projectId: runtime.projectId, event });
         await announceDiffReady(runtime);
         cleanupRuntime(runtime);
@@ -121,7 +122,7 @@ function sendVillageEvents(notification: ServerNotification): void {
       });
     } else if (event.type === 'session_needs_review') {
       runtime.turnId = null;
-      void store.recordNeedsReview(runtime.projectId, runtime.threadId, runtime.safeEventCount, runtime.turnStartedAt).then(async () => {
+      void store.recordNeedsReview(runtime.projectId, runtime.threadId, runtime.safeEventCount, runtime.turnStartedAt, runtime.sessionId ?? null).then(async () => {
         window?.webContents.send('village:event', { projectId: runtime.projectId, event });
         await announceDiffReady(runtime);
         cleanupRuntime(runtime);
@@ -157,12 +158,20 @@ async function announceDiffReady(runtime: ProjectRuntime): Promise<void> {
     // Desk account: model prose survives only where the diffstat vouches for it.
     const raw = runtime.rawCompletion ?? null;
     runtime.rawCompletion = null;
+    const durationMs = runtime.turnStartedAt ? Math.max(0, Date.now() - Date.parse(runtime.turnStartedAt)) : null;
     await scaffolds.saveOutcome(record, {
       testsPassed: runtime.testsPassed ?? null,
-      durationMs: runtime.turnStartedAt ? Math.max(0, Date.now() - Date.parse(runtime.turnStartedAt)) : null,
+      durationMs,
       deskLanded: raw ? sanitizeDeskAccountText(raw.landed, stats.changedPaths) : null,
       deskFollowUp: raw ? sanitizeDeskAccountText(raw.followUp, stats.changedPaths) : null,
       followUpRecommended: raw?.followUpRecommended ?? true,
+    });
+    await store.updateSessionStats(projectId, record.sessionId, {
+      filesChanged: stats.filesChanged,
+      insertions: stats.insertions,
+      deletions: stats.deletions,
+      testsPassed: runtime.testsPassed ?? null,
+      durationMs,
     });
     window?.webContents.send('village:event', {
       projectId,
@@ -364,7 +373,7 @@ function registerIpc(): void {
       throw error;
     }
     const startedAt = new Date().toISOString();
-    const runtime: ProjectRuntime = { projectId: input.projectId, threadId: thread.thread.id, turnId: null, lastAgentMessage: null, safeEventCount: 0, turnStartedAt: startedAt };
+    const runtime: ProjectRuntime = { projectId: input.projectId, threadId: thread.thread.id, turnId: null, lastAgentMessage: null, safeEventCount: 0, turnStartedAt: startedAt, sessionId: scaffold.sessionId };
     runtimes.add(runtime);
     try {
       const turn = await appServer.startTurn(runtime.threadId, input.task.trim());
@@ -393,7 +402,7 @@ function registerIpc(): void {
     if (!runtime) {
       const scaffold = await scaffolds.forProject(projectId);
       const resumed = await appServer.resumeThread(progress.lastThreadId, scaffold?.scaffoldPath ?? progress.repositoryPath, model);
-      runtime = { projectId, threadId: progress.lastThreadId, turnId: null, lastAgentMessage: null, safeEventCount: progress.safeEventCount, turnStartedAt: null };
+      runtime = { projectId, threadId: progress.lastThreadId, turnId: null, lastAgentMessage: null, safeEventCount: progress.safeEventCount, turnStartedAt: null, sessionId: scaffold?.sessionId ?? null };
       runtimes.add(runtime);
       if (resumed.thread.id !== progress.lastThreadId) throw new Error('Codex resumed an unexpected thread');
     }
@@ -476,7 +485,10 @@ function registerIpc(): void {
       outcome: record.outcome ?? null,
     };
   });
+  ipcMain.handle('wall:set', (_event, on: boolean) => { wallModeActive = Boolean(on); });
   ipcMain.handle('scaffold:diff', async (_event, projectId: string) => {
+    // Defense in depth: the desk register is refused outright while the wall display is up.
+    if (wallModeActive) throw new Error('Exit wall mode to inspect diffs');
     const record = await scaffolds.forProject(projectId);
     if (!record) return null;
     await scaffolds.checkpoint(record);
@@ -500,6 +512,7 @@ function registerIpc(): void {
     const summary = progress?.lastDebrief?.landed ?? 'Codeville improvement';
     const result = await scaffolds.apply(record, `${summary}\n\nCodeville session ${record.sessionId}`);
     await scaffolds.discard(record);
+    await store.recordLanding(projectId, record.sessionId, 'applied');
     window?.webContents.send('village:event', { projectId, event: { type: 'session_applied', at: new Date().toISOString(), commit: result.commit.slice(0, 10) } });
     void updateAttentionBadge();
     return result;
@@ -509,6 +522,7 @@ function registerIpc(): void {
     const record = await requireScaffold(projectId);
     await scaffolds.checkpoint(record);
     await scaffolds.keep(record);
+    await store.recordLanding(projectId, record.sessionId, 'kept');
     window?.webContents.send('village:event', { projectId, event: { type: 'session_kept', at: new Date().toISOString(), branch: record.branch } });
     void updateAttentionBadge();
     return { branch: record.branch };
@@ -517,9 +531,12 @@ function registerIpc(): void {
     if (runtimes.forProject(projectId)?.turnId) throw new Error('The builder is still working. Interrupt it before discarding.');
     const record = await requireScaffold(projectId);
     await scaffolds.discard(record);
+    await store.recordLanding(projectId, record.sessionId, 'discarded');
     window?.webContents.send('village:event', { projectId, event: { type: 'session_discarded', at: new Date().toISOString() } });
     void updateAttentionBadge();
   });
+  ipcMain.handle('orders:add', (_event, projectId: string, task: string) => store.addWorkOrder(projectId, task));
+  ipcMain.handle('orders:delete', (_event, projectId: string, orderId: string) => store.deleteWorkOrder(projectId, orderId));
   ipcMain.handle('session:reclaim', async (_event, projectId: string) => {
     const progress = (await store.read()).projects[projectId];
     if (!progress?.lastThreadId || progress.conversationStatus !== 'external') throw new Error('This conversation is not owned by Ghostty');
@@ -527,7 +544,7 @@ function registerIpc(): void {
     const appServer = await ensureClient();
     const scaffold = await scaffolds.forProject(projectId);
     await appServer.resumeThread(progress.lastThreadId, scaffold?.scaffoldPath ?? progress.repositoryPath, model);
-    runtimes.add({ projectId, threadId: progress.lastThreadId, turnId: null, lastAgentMessage: null, safeEventCount: progress.safeEventCount, turnStartedAt: progress.lastTurnStartedAt });
+    runtimes.add({ projectId, threadId: progress.lastThreadId, turnId: null, lastAgentMessage: null, safeEventCount: progress.safeEventCount, turnStartedAt: progress.lastTurnStartedAt, sessionId: scaffold?.sessionId ?? null });
     await store.recordReclaimed(projectId);
   });
 }

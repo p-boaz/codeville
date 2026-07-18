@@ -281,3 +281,21 @@ button:disabled { cursor: not-allowed; opacity: 0.42; }
 .desk-account strong { display: block; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); margin-bottom: 3px; }
 .desk-account p { margin: 0; font-size: 10.5px; line-height: 1.5; color: var(--cream); }
 .desk-account .desk-followup { margin-top: 4px; color: var(--cream-muted); }
+
+.wall-toggle { padding: 6px 12px; border: 1px solid var(--line); border-radius: 9px; background: transparent; color: var(--cream-muted); font-size: 10px; font-weight: 700; cursor: pointer; }
+.wall-toggle:hover { color: var(--gold-bright); border-color: var(--gold); }
+.wall-mode .workspace { grid-template-columns: 1fr; }
+.wall-mode .village-stage { max-width: none; }
+.orders-panel, .ledger-panel { display: flex; flex-direction: column; gap: 8px; }
+.orders-list, .ledger-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.orders-list li { display: flex; align-items: baseline; gap: 8px; font-size: 10.5px; color: var(--cream); }
+.order-position { font-family: ui-monospace, monospace; font-size: 9px; color: var(--gold); min-width: 12px; }
+.order-task { flex: 1; overflow-wrap: anywhere; }
+.order-add { display: flex; gap: 6px; }
+.order-add input { flex: 1; padding: 7px 9px; border: 1px solid var(--line); border-radius: 9px; background: var(--forest-deep); color: var(--cream); font-size: 10.5px; }
+.ledger-list li { display: flex; gap: 8px; align-items: baseline; }
+.ledger-outcome { font-weight: 700; min-width: 12px; }
+.ledger-outcome.completed { color: #8fd49a; }
+.ledger-outcome.needs_review { color: #ef9a83; }
+.ledger-copy { display: flex; flex-direction: column; font-size: 10.5px; color: var(--cream); }
+.ledger-copy small { color: var(--cream-muted); font-size: 9px; font-variant-numeric: tabular-nums; }

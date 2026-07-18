@@ -29,7 +29,14 @@ export class VillageScene {
   private width = 1;
   private height = 1;
 
-  constructor() {
+  constructor(onSelectLot?: (slot: VillageLot['slot']) => void) {
+    if (onSelectLot) {
+      for (const lot of this.lots) {
+        lot.container.eventMode = 'static';
+        lot.container.cursor = 'pointer';
+        lot.container.on('pointertap', () => onSelectLot(lot.slot));
+      }
+    }
     const ground = new Graphics();
     ground.ellipse(0, 45, 530, 355).fill({ color: palette.water, alpha: 0.48 });
     ground.poly([-520, -50, 0, -310, 520, -50, 0, 330]).fill(palette.soil);
@@ -73,6 +80,7 @@ export class VillageScene {
 
 class ProjectLot {
   readonly container = new Container();
+  readonly slot: VillageLot['slot'];
   private readonly base = new Graphics();
   private readonly house = new Container();
   private readonly signText: Text;
@@ -86,7 +94,8 @@ class ProjectLot {
   private currentPhase: SessionPhase = 'idle';
   private pulse = 0;
 
-  constructor(private readonly slot: VillageLot['slot'], x: number, y: number, actorColor: number) {
+  constructor(slot: VillageLot['slot'], x: number, y: number, actorColor: number) {
+    this.slot = slot;
     this.container.position.set(x, y);
     this.base.poly([-122, -58, 122, -58, 122, 72, -122, 72]).fill({ color: palette.grassLight, alpha: 0.72 });
     this.base.poly([-122, 72, 122, 72, 112, 84, -112, 84]).fill({ color: palette.soil, alpha: 0.9 });
@@ -163,6 +172,11 @@ class ProjectLot {
   }
 }
 
+/**
+ * Levels are LANDED sessions, and each tier is visually distinct so a week of
+ * real work reads at a glance: cottage → tower → annex → guild banner + garden
+ * → windmill. Landed work also leaves one plaque stud per level on the lot edge.
+ */
 function drawHouse(container: Container, level: number, completed: boolean): void {
   const shell = new Graphics();
   shell.poly([-70, -22, 5, 16, 5, 65, -70, 28]).fill(palette.shade);
@@ -173,13 +187,49 @@ function drawHouse(container: Container, level: number, completed: boolean): voi
   shell.rect(12, 17, 18, 19).fill(completed ? palette.window : 0x718376);
   shell.rect(-45, -2, 19, 18).fill(completed ? palette.window : 0x718376);
   container.addChild(shell);
-  if (level > 0 || completed) {
+  if (level >= 1 || completed) {
     const tower = new Graphics();
     tower.rect(-18, -96, 37, 46).fill(palette.wall);
     tower.poly([-27, -94, 0, -127, 28, -94]).fill(palette.roofLight);
     tower.circle(0, -77, 8).fill(palette.window);
     container.addChild(tower);
   }
+  if (level >= 2) {
+    const annex = new Graphics();
+    annex.poly([-108, 8, -70, 28, -70, 58, -108, 38]).fill(palette.shade);
+    annex.poly([-114, 6, -76, -14, -64, 22, -102, 42]).fill(palette.roof);
+    annex.rect(-98, 20, 12, 12).fill(level >= 3 ? palette.window : 0x718376);
+    container.addChild(annex);
+  }
+  if (level >= 3) {
+    const guild = new Graphics();
+    guild.rect(58, -52, 3, 34).fill(palette.timber);
+    guild.poly([61, -52, 84, -46, 61, -38]).fill(palette.roofLight);
+    guild.ellipse(-88, 62, 18, 7).fill({ color: palette.grass, alpha: 0.9 });
+    guild.circle(-94, 59, 3).fill(0xd36b55);
+    guild.circle(-84, 61, 3).fill(0xffd875);
+    guild.circle(-89, 64, 3).fill(0xfff4d9);
+    container.addChild(guild);
+  }
+  if (level >= 4) {
+    const windmill = new Graphics();
+    windmill.rect(-2, -158, 4, 32).fill(palette.timber);
+    for (const angle of [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2]) {
+      const bladeLength = 24;
+      windmill.poly([
+        0, -158,
+        Math.cos(angle - 0.12) * bladeLength, -158 + Math.sin(angle - 0.12) * bladeLength,
+        Math.cos(angle + 0.12) * bladeLength, -158 + Math.sin(angle + 0.12) * bladeLength,
+      ]).fill({ color: palette.cream, alpha: 0.85 });
+    }
+    windmill.circle(0, -158, 3.5).fill(palette.timber);
+    container.addChild(windmill);
+  }
+  const plaques = new Graphics();
+  for (let index = 0; index < Math.min(level, 6); index += 1) {
+    plaques.roundRect(-60 + index * 21, 76, 13, 8, 2).fill(0xe8b85b).stroke({ color: palette.timber, width: 1 });
+  }
+  container.addChild(plaques);
   container.position.set(3, -3);
 }
 

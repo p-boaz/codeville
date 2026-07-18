@@ -3,12 +3,15 @@ import { useEffect, useRef } from 'react';
 
 import { VillageScene, type ProjectSnapshot } from './VillageScene';
 
-interface VillageCanvasProps { projects: ProjectSnapshot[] }
+interface VillageCanvasProps { projects: ProjectSnapshot[]; onSelectSlot?: (slot: ProjectSnapshot['slot']) => void }
 
-export function VillageCanvas({ projects }: VillageCanvasProps) {
+export function VillageCanvas({ projects, onSelectSlot }: VillageCanvasProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<VillageScene | null>(null);
   const projectsRef = useRef(projects);
+  const selectRef = useRef(onSelectSlot);
+
+  useEffect(() => { selectRef.current = onSelectSlot; }, [onSelectSlot]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -21,7 +24,7 @@ export function VillageCanvas({ projects }: VillageCanvasProps) {
       await nextApp.init({ backgroundAlpha: 0, antialias: true, autoDensity: true, resolution: Math.min(window.devicePixelRatio, 2), width: host.clientWidth, height: host.clientHeight });
       if (cancelled) { nextApp.destroy(true, { children: true }); return; }
       app = nextApp;
-      const scene = new VillageScene();
+      const scene = new VillageScene((slot) => selectRef.current?.(slot));
       sceneRef.current = scene;
       scene.update(projectsRef.current);
       host.replaceChildren(nextApp.canvas);

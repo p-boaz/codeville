@@ -14,8 +14,8 @@ const progression: ProgressionData = {
     { slot: 4, projectId: null, path: null, name: null, isDemo: false },
   ],
   projects: {
-    graph: { projectId: 'graph', repositoryPath: '/projects/graphletter', repositoryName: 'graphletter', isDemo: false, level: 0, completedSessions: 0, lastCompletedAt: null, lastDebrief: null, lastThreadId: null, conversationStatus: 'idle', pendingInput: null, handoffAt: null, safeEventCount: 0, lastTurnStartedAt: null },
-    kalshi: { projectId: 'kalshi', repositoryPath: '/projects/kalshi-mlb', repositoryName: 'kalshi-mlb', isDemo: false, level: 0, completedSessions: 0, lastCompletedAt: null, lastDebrief: null, lastThreadId: null, conversationStatus: 'idle', pendingInput: null, handoffAt: null, safeEventCount: 0, lastTurnStartedAt: null },
+    graph: { projectId: 'graph', repositoryPath: '/projects/graphletter', repositoryName: 'graphletter', isDemo: false, level: 0, completedSessions: 0, lastCompletedAt: null, lastDebrief: null, lastThreadId: null, conversationStatus: 'idle', pendingInput: null, handoffAt: null, safeEventCount: 0, lastTurnStartedAt: null, history: [], queue: [] },
+    kalshi: { projectId: 'kalshi', repositoryPath: '/projects/kalshi-mlb', repositoryName: 'kalshi-mlb', isDemo: false, level: 0, completedSessions: 0, lastCompletedAt: null, lastDebrief: null, lastThreadId: null, conversationStatus: 'idle', pendingInput: null, handoffAt: null, safeEventCount: 0, lastTurnStartedAt: null, history: [], queue: [] },
   },
 };
 

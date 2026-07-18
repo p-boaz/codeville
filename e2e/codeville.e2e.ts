@@ -134,6 +134,15 @@ test('assigns, restores, isolates tasks, and confirms a selected real-project su
     await page.getByPlaceholder('Describe one concrete coding task').fill('Verify market ingestion');
     await page.getByRole('button', { name: /graphletter/i }).click();
     await expect(page.getByPlaceholder('Describe one concrete coding task')).toHaveValue('Improve graph export');
+
+    // Wall mode: the desk register unmounts entirely — no task text, rail, or desk in the DOM.
+    await page.keyboard.press('w');
+    await expect(page.locator('.task-panel')).toHaveCount(0);
+    await expect(page.locator('.project-rail')).toHaveCount(0);
+    await expect(page.getByText('Improve graph export')).toHaveCount(0);
+    await page.keyboard.press('w');
+    await expect(page.getByPlaceholder('Describe one concrete coding task')).toHaveValue('Improve graph export');
+
     await page.getByRole('checkbox', { name: /select graphletter/i }).uncheck();
     await page.getByRole('button', { name: /start selected builders/i }).click();
     await expect(page.getByRole('dialog', { name: /start 1 selected builder/i })).toContainText('kalshi-mlb');

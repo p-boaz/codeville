@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import type { ConnectionProof, InputResponse, PendingInputView, PendingScaffoldView, ProjectProgress, EnvironmentStatus, ProjectSelection, SessionDiffView } from '../../shared/village-events';
 import type { SessionState } from '../../state/session-machine';
 import { ConnectionProofPanel } from './ConnectionProofPanel';
@@ -23,6 +25,9 @@ interface TaskPanelProps {
   onApply(): void;
   onKeep(): void;
   onDiscard(): void;
+  onAddOrder(task: string): void;
+  onDeleteOrder(orderId: string): void;
+  onStartNextOrder(): void;
   proof: ConnectionProof | null;
   handoffNotice: string | null;
   error: string | null;
@@ -75,6 +80,9 @@ export function TaskPanel({
   onApply,
   onKeep,
   onDiscard,
+  onAddOrder,
+  onDeleteOrder,
+  onStartNextOrder,
   proof,
   handoffNotice,
   error,
@@ -181,6 +189,37 @@ export function TaskPanel({
       {error && <div className="error-banner" role="alert">{error}</div>}
       {handoffNotice && <div className="handoff-notice" role="status">{handoffNotice}</div>}
 
+      {project && progress && (
+        <WorkOrdersSection
+          queue={progress.queue}
+          canStartNext={Boolean(environment?.codexAvailable && !sessionActive && !pendingScaffold && !pendingInput && progress.queue.length > 0 && !['waiting', 'external'].includes(session.phase))}
+          onAdd={onAddOrder}
+          onDelete={onDeleteOrder}
+          onStartNext={onStartNextOrder}
+        />
+      )}
+
+      {project && progress && progress.history.length > 0 && (
+        <details className="proof-panel ledger-panel">
+          <summary><span>Workshop ledger</span><strong>{progress.history.length} session{progress.history.length === 1 ? '' : 's'}</strong></summary>
+          <ol className="ledger-list" aria-label="Session ledger">
+            {[...progress.history].reverse().map((record) => (
+              <li key={`${record.sessionId}-${record.endedAt}`}>
+                <span className={`ledger-outcome ${record.outcome}`}>{record.outcome === 'completed' ? '✓' : '?'}</span>
+                <span className="ledger-copy">
+                  <span>{record.wallLanded ?? 'Result needed review'}</span>
+                  <small>
+                    {formatDay(record.endedAt)} · {record.filesChanged} file{record.filesChanged === 1 ? '' : 's'} +{record.insertions} −{record.deletions}
+                    {record.testsPassed !== null && ` · tests ${record.testsPassed ? 'passed' : 'failed'}`}
+                    {record.landing && ` · ${record.landing}`}
+                  </small>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
+
       {project && <ConnectionProofPanel proof={proof} />}
 
       {project && progress?.lastThreadId && (
@@ -224,4 +263,46 @@ function formatTime(value: string): string {
     minute: '2-digit',
     second: '2-digit',
   }).format(new Date(value));
+}
+
+function formatDay(value: string): string {
+  return new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
+}
+
+function WorkOrdersSection({ queue, canStartNext, onAdd, onDelete, onStartNext }: {
+  queue: { id: string; task: string; createdAt: string }[];
+  canStartNext: boolean;
+  onAdd(task: string): void;
+  onDelete(orderId: string): void;
+  onStartNext(): void;
+}) {
+  const [draft, setDraft] = useState('');
+  return (
+    <details className="proof-panel orders-panel" open={queue.length > 0}>
+      <summary><span>Work orders</span><strong>{queue.length ? `${queue.length} queued` : 'None queued'}</strong></summary>
+      {queue.length > 0 && (
+        <ol className="orders-list" aria-label="Queued work orders">
+          {queue.map((order, index) => (
+            <li key={order.id}>
+              <span className="order-position">{index + 1}</span>
+              <span className="order-task">{order.task}</span>
+              <button className="text-button" onClick={() => onDelete(order.id)} aria-label={`Remove order ${index + 1}`}>✕</button>
+            </li>
+          ))}
+        </ol>
+      )}
+      <div className="order-add">
+        <input
+          aria-label="New work order"
+          placeholder="Queue the next improvement"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => { if (event.key === 'Enter' && draft.trim()) { onAdd(draft); setDraft(''); } }}
+        />
+        <button className="secondary-button" disabled={!draft.trim()} onClick={() => { onAdd(draft); setDraft(''); }}>Add</button>
+      </div>
+      {canStartNext && <button className="primary-button" onClick={onStartNext}>Start next order <span aria-hidden="true">→</span></button>}
+      <small>Orders are stored on this Mac (see the privacy note) and start only when you say so.</small>
+    </details>
+  );
 }

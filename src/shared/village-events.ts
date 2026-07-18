@@ -112,6 +112,27 @@ export interface VillageLot {
   isDemo: boolean;
 }
 
+/** One ledger row: safe-register facts about a finished session and how it landed. */
+export interface SessionRecord {
+  sessionId: string;
+  startedAt: string | null;
+  endedAt: string;
+  outcome: 'completed' | 'needs_review';
+  filesChanged: number;
+  insertions: number;
+  deletions: number;
+  testsPassed: boolean | null;
+  durationMs: number | null;
+  landing: 'applied' | 'kept' | 'discarded' | null;
+  wallLanded: string | null;
+}
+
+export interface WorkOrder {
+  id: string;
+  task: string;
+  createdAt: string;
+}
+
 export interface ProjectProgress {
   projectId: string;
   repositoryPath: string;
@@ -127,6 +148,8 @@ export interface ProjectProgress {
   handoffAt: string | null;
   safeEventCount: number;
   lastTurnStartedAt: string | null;
+  history: SessionRecord[];
+  queue: WorkOrder[];
 }
 
 export interface ProgressionData {
@@ -215,6 +238,8 @@ export interface CodevilleBridge {
   getConnectionProof(projectId: string): Promise<ConnectionProof>;
   handoffToGhostty(projectId: string): Promise<HandoffResult>;
   reclaimFromGhostty(projectId: string): Promise<void>;
+  addWorkOrder(projectId: string, task: string): Promise<ProgressionData>;
+  deleteWorkOrder(projectId: string, orderId: string): Promise<ProgressionData>;
   getPendingScaffold(projectId: string): Promise<PendingScaffoldView | null>;
   getSessionDiff(projectId: string): Promise<SessionDiffView | null>;
   applySession(projectId: string): Promise<{ commit: string }>;
@@ -226,6 +251,7 @@ export interface CodevilleBridge {
   onApprovalRequest(listener: (request: ApprovalRequestView | null) => void): () => void;
   onInputRequest(listener: (update: InputRequestUpdate) => void): () => void;
   onFocusProject(listener: (projectId: string) => void): () => void;
+  setWallMode(on: boolean): Promise<void>;
 }
 
 declare global {

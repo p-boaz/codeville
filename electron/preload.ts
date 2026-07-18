@@ -21,6 +21,8 @@ const bridge: CodevilleBridge = {
   getConnectionProof: (projectId) => ipcRenderer.invoke('connection:proof', projectId),
   handoffToGhostty: (projectId) => ipcRenderer.invoke('session:handoff', projectId),
   reclaimFromGhostty: (projectId) => ipcRenderer.invoke('session:reclaim', projectId),
+  addWorkOrder: (projectId, task) => ipcRenderer.invoke('orders:add', projectId, task),
+  deleteWorkOrder: (projectId, orderId) => ipcRenderer.invoke('orders:delete', projectId, orderId),
   getPendingScaffold: (projectId) => ipcRenderer.invoke('scaffold:pending', projectId),
   getSessionDiff: (projectId) => ipcRenderer.invoke('scaffold:diff', projectId),
   applySession: (projectId) => ipcRenderer.invoke('scaffold:apply', projectId),
@@ -43,6 +45,7 @@ const bridge: CodevilleBridge = {
     ipcRenderer.on('input:request', wrapped);
     return () => ipcRenderer.removeListener('input:request', wrapped);
   },
+  setWallMode: (on: boolean) => ipcRenderer.invoke('wall:set', on),
   onFocusProject: (listener) => {
     const wrapped = (_event: Electron.IpcRendererEvent, projectId: string) => listener(projectId);
     ipcRenderer.on('village:focus-project', wrapped);

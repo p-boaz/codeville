@@ -7,6 +7,8 @@ export interface ProjectRuntime {
   lastAgentMessage: string | null;
   safeEventCount: number;
   turnStartedAt: string | null;
+  /** Scaffold/session identity; ties runtime events to ledger rows and the scaffold branch. */
+  sessionId?: string | null;
   /** Truthful test telemetry for the current turn; the model cannot claim it. */
   testsPassed?: boolean | null;
   /** Unsanitized completion account, held transiently until the diff is known. */

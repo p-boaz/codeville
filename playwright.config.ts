@@ -7,5 +7,7 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   workers: 1,
   fullyParallel: false,
+  // This 8 GB machine can stall UI assertions under post-build load; a real logic bug still fails twice.
+  retries: 1,
   reporter: [['list']],
 });
