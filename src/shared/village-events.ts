@@ -39,7 +39,11 @@ export type VillageEvent =
   | { type: 'session_needs_review'; at: string }
   | { type: 'session_external'; at: string }
   | { type: 'session_failed'; at: string; recoverable: boolean }
-  | { type: 'session_interrupted'; at: string };
+  | { type: 'session_interrupted'; at: string }
+  | { type: 'diff_ready'; at: string; filesChanged: number; insertions: number; deletions: number }
+  | { type: 'session_applied'; at: string; commit: string }
+  | { type: 'session_kept'; at: string; branch: string }
+  | { type: 'session_discarded'; at: string };
 
 export interface ProjectVillageEvent {
   projectId: string;
@@ -152,6 +156,36 @@ export interface StartSessionResult {
   model: string;
 }
 
+/** Safe scaffold summary: counts and branch only, no paths or code. */
+export interface PendingScaffoldView {
+  projectId: string;
+  branch: string;
+  baseSubject: string;
+  createdAt: string;
+  filesChanged: number;
+  insertions: number;
+  deletions: number;
+}
+
+export interface SessionDiffFile {
+  path: string;
+  insertions: number;
+  deletions: number;
+  patch: string;
+}
+
+/** Desk register ONLY. Carries real paths and patches; must never cross the village event channel. */
+export interface SessionDiffView {
+  projectId: string;
+  branch: string;
+  baseCommit: string;
+  baseSubject: string;
+  filesChanged: number;
+  insertions: number;
+  deletions: number;
+  files: SessionDiffFile[];
+}
+
 export interface BatchLaunchProject {
   projectId: string;
   projectPath: string;
@@ -171,6 +205,11 @@ export interface CodevilleBridge {
   getConnectionProof(projectId: string): Promise<ConnectionProof>;
   handoffToGhostty(projectId: string): Promise<HandoffResult>;
   reclaimFromGhostty(projectId: string): Promise<void>;
+  getPendingScaffold(projectId: string): Promise<PendingScaffoldView | null>;
+  getSessionDiff(projectId: string): Promise<SessionDiffView | null>;
+  applySession(projectId: string): Promise<{ commit: string }>;
+  keepSession(projectId: string): Promise<{ branch: string }>;
+  discardSession(projectId: string): Promise<void>;
   getProgression(): Promise<ProgressionData>;
   resetProgression(): Promise<ProgressionData>;
   onVillageEvent(listener: (event: ProjectVillageEvent) => void): () => void;

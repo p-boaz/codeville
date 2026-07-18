@@ -1,4 +1,5 @@
 import { execFile, spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { access, cp, mkdir, rm, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { promisify } from 'node:util';
@@ -24,6 +25,7 @@ import { inputRequestView, inputResponse } from './input-request';
 import { resolveCodexBinary } from './codex/resolve-binary';
 import { ProgressionStore } from './progression-store';
 import { ProjectRuntimeRegistry, type ProjectRuntime } from './project-runtime-registry';
+import { ScaffoldManager, type ScaffoldRecord } from './scaffold-manager';
 
 const executeFile = promisify(execFile);
 const model = 'gpt-5.6-sol';
@@ -36,6 +38,7 @@ if (process.env.CODEVILLE_USER_DATA_DIR) app.setPath('userData', process.env.COD
 let window: BrowserWindow | null = null;
 let client: AppServerClient | null = null;
 let store: ProgressionStore;
+let scaffolds: ScaffoldManager;
 const runtimes = new ProjectRuntimeRegistry();
 const pendingApprovals = new Map<string, { request: ServerRequest; projectId: string }>();
 const pendingInputs = new Map<string, { request: Extract<ServerRequest, { method: 'item/tool/requestUserInput' }>; view: PendingInputView }>();
@@ -96,8 +99,9 @@ function sendVillageEvents(notification: ServerNotification): void {
     runtime.safeEventCount += 1;
     if (event.type === 'session_completed') {
       runtime.turnId = null;
-      void store.recordCompletion(runtime.projectId, event.at, event.debrief, runtime.safeEventCount, runtime.turnStartedAt).then(() => {
+      void store.recordCompletion(runtime.projectId, event.at, event.debrief, runtime.safeEventCount, runtime.turnStartedAt).then(async () => {
         window?.webContents.send('village:event', { projectId: runtime.projectId, event });
+        await announceDiffReady(runtime.projectId);
         cleanupRuntime(runtime);
       });
     } else if (event.type === 'input_required' && notification.method === 'turn/completed') {
@@ -109,8 +113,9 @@ function sendVillageEvents(notification: ServerNotification): void {
       });
     } else if (event.type === 'session_needs_review') {
       runtime.turnId = null;
-      void store.recordNeedsReview(runtime.projectId, runtime.threadId, runtime.safeEventCount, runtime.turnStartedAt).then(() => {
+      void store.recordNeedsReview(runtime.projectId, runtime.threadId, runtime.safeEventCount, runtime.turnStartedAt).then(async () => {
         window?.webContents.send('village:event', { projectId: runtime.projectId, event });
+        await announceDiffReady(runtime.projectId);
         cleanupRuntime(runtime);
       });
     } else {
@@ -122,6 +127,37 @@ function sendVillageEvents(notification: ServerNotification): void {
 
 function cleanupRuntime(runtime: ProjectRuntime): void {
   runtimes.remove(runtime);
+}
+
+/**
+ * Seal the finished session's scaffold: commit the agent's work on its branch,
+ * then tell the renderer how big the landable diff is (counts only — the safe
+ * register never carries paths or patches). An untouched scaffold is discarded
+ * so the lot returns to a startable state.
+ */
+async function announceDiffReady(projectId: string): Promise<void> {
+  try {
+    const record = await scaffolds.forProject(projectId);
+    if (!record) return;
+    await scaffolds.checkpoint(record);
+    const stats = await scaffolds.diffStats(record);
+    if (stats.filesChanged === 0) {
+      await scaffolds.discard(record);
+      return;
+    }
+    window?.webContents.send('village:event', {
+      projectId,
+      event: { type: 'diff_ready', at: new Date().toISOString(), filesChanged: stats.filesChanged, insertions: stats.insertions, deletions: stats.deletions },
+    });
+  } catch (cause) {
+    console.warn(`[scaffold] finalize failed for ${projectId}: ${cause instanceof Error ? cause.message : String(cause)}`);
+  }
+}
+
+async function requireScaffold(projectId: string): Promise<ScaffoldRecord> {
+  const record = await scaffolds.forProject(projectId);
+  if (!record) throw new Error('This project has no pending improvement to inspect');
+  return record;
 }
 
 function handleServerRequest(request: ServerRequest): void {
@@ -260,8 +296,22 @@ function registerIpc(): void {
     const lot = (await store.read()).lots.find((candidate) => candidate.projectId === input.projectId && candidate.path === input.projectPath);
     if (!lot) throw new Error('This project is not assigned to the village');
     await access(input.projectPath);
+    const previous = await scaffolds.forProject(input.projectId);
+    if (previous) {
+      await scaffolds.checkpoint(previous);
+      const stats = await scaffolds.diffStats(previous);
+      if (stats.filesChanged > 0) throw new Error('This workshop has an uninspected improvement. Apply, keep, or discard it before starting new work.');
+      await scaffolds.discard(previous);
+    }
     const appServer = await ensureClient();
-    const thread = await appServer.startThread(input.projectPath, model);
+    const scaffold = await scaffolds.create(input.projectPath, input.projectId, randomUUID());
+    let thread;
+    try {
+      thread = await appServer.startThread(scaffold.scaffoldPath, model);
+    } catch (error) {
+      await scaffolds.discard(scaffold);
+      throw error;
+    }
     const startedAt = new Date().toISOString();
     const runtime: ProjectRuntime = { projectId: input.projectId, threadId: thread.thread.id, turnId: null, lastAgentMessage: null, safeEventCount: 0, turnStartedAt: startedAt };
     runtimes.add(runtime);
@@ -272,6 +322,7 @@ function registerIpc(): void {
       return { threadId: runtime.threadId, turnId: turn.turn.id, model: thread.model };
     } catch (error) {
       cleanupRuntime(runtime);
+      await scaffolds.discard(scaffold);
       throw error;
     }
   });
@@ -289,7 +340,8 @@ function registerIpc(): void {
     let runtime = runtimes.forProject(projectId);
     if (runtime?.turnId) throw new Error('This project already has an active turn');
     if (!runtime) {
-      const resumed = await appServer.resumeThread(progress.lastThreadId, progress.repositoryPath, model);
+      const scaffold = await scaffolds.forProject(projectId);
+      const resumed = await appServer.resumeThread(progress.lastThreadId, scaffold?.scaffoldPath ?? progress.repositoryPath, model);
       runtime = { projectId, threadId: progress.lastThreadId, turnId: null, lastAgentMessage: null, safeEventCount: progress.safeEventCount, turnStartedAt: null };
       runtimes.add(runtime);
       if (resumed.thread.id !== progress.lastThreadId) throw new Error('Codex resumed an unexpected thread');
@@ -334,7 +386,8 @@ function registerIpc(): void {
     if (runtime) cleanupRuntime(runtime);
     const binary = resolveCodexBinary();
     if (!binary) throw new Error('Codex CLI was not found');
-    const commandArgs = [binary, 'resume', progress.lastThreadId, '-C', progress.repositoryPath];
+    const scaffold = await scaffolds.forProject(projectId);
+    const commandArgs = [binary, 'resume', progress.lastThreadId, '-C', scaffold?.scaffoldPath ?? progress.repositoryPath];
     const command = commandArgs.map(shellQuote).join(' ');
     const at = new Date().toISOString();
     await store.recordExternal(projectId, at);
@@ -355,12 +408,70 @@ function registerIpc(): void {
       return { launched: false, command, message: 'Ghostty is unavailable. The exact resume command was copied.' };
     }
   });
+  ipcMain.handle('scaffold:pending', async (_event, projectId: string) => {
+    const record = await scaffolds.forProject(projectId);
+    if (!record) return null;
+    await scaffolds.checkpoint(record);
+    const stats = await scaffolds.diffStats(record);
+    if (stats.filesChanged === 0) return null;
+    return {
+      projectId,
+      branch: record.branch,
+      baseSubject: record.baseSubject,
+      createdAt: record.createdAt,
+      filesChanged: stats.filesChanged,
+      insertions: stats.insertions,
+      deletions: stats.deletions,
+    };
+  });
+  ipcMain.handle('scaffold:diff', async (_event, projectId: string) => {
+    const record = await scaffolds.forProject(projectId);
+    if (!record) return null;
+    await scaffolds.checkpoint(record);
+    const [stats, files] = [await scaffolds.diffStats(record), await scaffolds.diff(record)];
+    return {
+      projectId,
+      branch: record.branch,
+      baseCommit: record.baseCommit.slice(0, 10),
+      baseSubject: record.baseSubject,
+      filesChanged: stats.filesChanged,
+      insertions: stats.insertions,
+      deletions: stats.deletions,
+      files,
+    };
+  });
+  ipcMain.handle('scaffold:apply', async (_event, projectId: string) => {
+    if (runtimes.forProject(projectId)?.turnId) throw new Error('The builder is still working. Wait for the turn to finish before applying.');
+    const record = await requireScaffold(projectId);
+    await scaffolds.checkpoint(record);
+    const progress = (await store.read()).projects[projectId];
+    const summary = progress?.lastDebrief?.landed ?? 'Codeville improvement';
+    const result = await scaffolds.apply(record, `${summary}\n\nCodeville session ${record.sessionId}`);
+    await scaffolds.discard(record);
+    window?.webContents.send('village:event', { projectId, event: { type: 'session_applied', at: new Date().toISOString(), commit: result.commit.slice(0, 10) } });
+    return result;
+  });
+  ipcMain.handle('scaffold:keep', async (_event, projectId: string) => {
+    if (runtimes.forProject(projectId)?.turnId) throw new Error('The builder is still working. Wait for the turn to finish before keeping the branch.');
+    const record = await requireScaffold(projectId);
+    await scaffolds.checkpoint(record);
+    await scaffolds.keep(record);
+    window?.webContents.send('village:event', { projectId, event: { type: 'session_kept', at: new Date().toISOString(), branch: record.branch } });
+    return { branch: record.branch };
+  });
+  ipcMain.handle('scaffold:discard', async (_event, projectId: string) => {
+    if (runtimes.forProject(projectId)?.turnId) throw new Error('The builder is still working. Interrupt it before discarding.');
+    const record = await requireScaffold(projectId);
+    await scaffolds.discard(record);
+    window?.webContents.send('village:event', { projectId, event: { type: 'session_discarded', at: new Date().toISOString() } });
+  });
   ipcMain.handle('session:reclaim', async (_event, projectId: string) => {
     const progress = (await store.read()).projects[projectId];
     if (!progress?.lastThreadId || progress.conversationStatus !== 'external') throw new Error('This conversation is not owned by Ghostty');
     if (runtimes.hasProject(projectId)) throw new Error('Codeville already owns this conversation');
     const appServer = await ensureClient();
-    await appServer.resumeThread(progress.lastThreadId, progress.repositoryPath, model);
+    const scaffold = await scaffolds.forProject(projectId);
+    await appServer.resumeThread(progress.lastThreadId, scaffold?.scaffoldPath ?? progress.repositoryPath, model);
     runtimes.add({ projectId, threadId: progress.lastThreadId, turnId: null, lastAgentMessage: null, safeEventCount: progress.safeEventCount, turnStartedAt: progress.lastTurnStartedAt });
     await store.recordReclaimed(projectId);
   });
@@ -370,7 +481,12 @@ function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
-app.whenReady().then(() => { store = new ProgressionStore(app.getPath('userData')); registerIpc(); createWindow(); });
+app.whenReady().then(() => {
+  store = new ProgressionStore(app.getPath('userData'));
+  scaffolds = new ScaffoldManager(join(app.getPath('userData'), 'scaffolds'));
+  registerIpc();
+  createWindow();
+});
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 app.on('before-quit', () => { void client?.stop(); });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });

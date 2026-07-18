@@ -18,7 +18,7 @@ interface ProjectRailProps {
 const phaseLabels: Record<SessionState['phase'], string> = {
   idle: 'Ready', starting: 'Arriving', planning: 'Planning', reading: 'Reading', editing: 'Building',
   testing: 'Testing', approval: 'Needs approval', completed: 'Complete', failed: 'Failed', interrupted: 'Interrupted',
-  input: 'Needs input', waiting: 'Waiting', needs_review: 'Needs review', external: 'In Ghostty',
+  input: 'Needs input', waiting: 'Waiting', needs_review: 'Needs review', external: 'In Ghostty', reviewing: 'Inspect',
 };
 
 export function ProjectRail({ progression, sessions, tasks, selectedSlot, batchSelected, canStartAll, canStartSelected, onSelect, onToggleBatch, onStartAll, onStartSelected }: ProjectRailProps) {

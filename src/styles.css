@@ -259,3 +259,20 @@ button:disabled { cursor: not-allowed; opacity: 0.42; }
   .stage-heading { max-width: 370px; }
   .progress-badge span { display: none; }
 }
+
+.inspection-card { display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid rgba(232, 184, 91, 0.38); border-radius: 15px; background: rgba(232, 184, 91, 0.09); }
+.inspection-card .eyebrow { color: var(--gold-bright); }
+.inspection-stats { display: flex; align-items: baseline; gap: 10px; font-size: 13px; color: var(--cream); font-variant-numeric: tabular-nums; }
+.inspection-base { margin: 0; font-size: 10px; line-height: 1.5; color: var(--cream-muted); }
+.inspection-base code { color: var(--gold); font-size: 9px; }
+.diff-insertions { color: #8fd49a; font-weight: 700; }
+.diff-deletions { color: #ef9a83; font-weight: 700; }
+.diff-view { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
+.diff-file { border: 1px solid var(--line); border-radius: 10px; background: var(--forest-deep); }
+.diff-file summary { display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px; cursor: pointer; font-size: 10px; color: var(--cream); }
+.diff-file summary code { overflow-wrap: anywhere; }
+.diff-file pre { margin: 0; padding: 8px 10px; border-top: 1px solid var(--line); font-size: 9.5px; line-height: 1.45; overflow-x: auto; color: var(--cream-muted); }
+.landing-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.danger-button { padding: 9px 14px; border: 1px solid var(--terracotta); border-radius: 11px; background: rgba(189, 101, 80, 0.22); color: #ef9a83; font-weight: 700; font-size: 11px; cursor: pointer; }
+.inspection-card > small { color: var(--cream-muted); font-size: 9px; line-height: 1.5; }
+.project-tab.phase-reviewing .phase-indicator { background: var(--gold-bright); box-shadow: 0 0 8px rgba(255, 216, 121, 0.7); }

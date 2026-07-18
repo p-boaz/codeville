@@ -53,4 +53,16 @@ describe('session state machine', () => {
     expect(reduceSession(initialSessionState, { type: 'session_needs_review', at: '2026-07-18T00:00:00.000Z' }).phase).toBe('needs_review');
     expect(reduceSession(initialSessionState, { type: 'session_external', at: '2026-07-18T00:00:00.000Z' }).phase).toBe('external');
   });
+
+  it('walks the landing flow: diff ready, then applied or discarded', () => {
+    const reviewing = reduceSession(initialSessionState, { type: 'diff_ready', at: '2026-07-18T00:00:00.000Z', filesChanged: 3, insertions: 20, deletions: 4 });
+    expect(reviewing.phase).toBe('reviewing');
+    const applied = reduceSession(reviewing, { type: 'session_applied', at: '2026-07-18T00:00:01.000Z', commit: 'abc1234def' });
+    expect(applied.phase).toBe('completed');
+    expect(applied.events.at(-1)).toMatchObject({ tone: 'success', label: 'Improvement installed in your repository' });
+    const kept = reduceSession(reviewing, { type: 'session_kept', at: '2026-07-18T00:00:01.000Z', branch: 'codeville/session-1' });
+    expect(kept.phase).toBe('completed');
+    const discarded = reduceSession(reviewing, { type: 'session_discarded', at: '2026-07-18T00:00:01.000Z' });
+    expect(discarded.phase).toBe('idle');
+  });
 });

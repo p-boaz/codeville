@@ -151,7 +151,7 @@ function textStyle(size: number, fill: number, weight: '600' | '700'): TextStyle
 }
 
 function phaseLabel(phase: SessionPhase): string {
-  return ({ idle: 'Ready', starting: 'Builder arriving', planning: 'Planning', reading: 'Reading', editing: 'Building', testing: 'Testing', approval: 'Needs approval', input: 'Needs input', waiting: 'Waiting for reply', needs_review: 'Needs review', external: 'In Ghostty', completed: 'Improvement complete', failed: 'Construction paused', interrupted: 'Ready' })[phase];
+  return ({ idle: 'Ready', starting: 'Builder arriving', planning: 'Planning', reading: 'Reading', editing: 'Building', testing: 'Testing', approval: 'Needs approval', input: 'Needs input', waiting: 'Waiting for reply', needs_review: 'Needs review', external: 'In Ghostty', reviewing: 'Ready for inspection', completed: 'Improvement complete', failed: 'Construction paused', interrupted: 'Ready' })[phase];
 }
 
 function trim(value: string, length: number): string { return value.length > length ? `${value.slice(0, length - 1)}…` : value; }

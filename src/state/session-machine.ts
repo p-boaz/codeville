@@ -12,6 +12,7 @@ export type SessionPhase =
   | 'waiting'
   | 'needs_review'
   | 'external'
+  | 'reviewing'
   | 'completed'
   | 'failed'
   | 'interrupted';
@@ -55,12 +56,16 @@ const labels: Record<VillageEvent['type'], string> = {
   session_external: 'Conversation moved to Ghostty',
   session_failed: 'Construction paused',
   session_interrupted: 'Work stopped safely',
+  diff_ready: 'Improvement ready for inspection',
+  session_applied: 'Improvement installed in your repository',
+  session_kept: 'Branch kept for your own merge',
+  session_discarded: 'Session work discarded',
 };
 
 export function reduceSession(state: SessionState, event: VillageEvent): SessionState {
   const phase = phaseForEvent(event);
   const tone: ActivityEntry['tone'] =
-    event.type === 'session_completed' || event.type === 'tests_passed'
+    event.type === 'session_completed' || event.type === 'tests_passed' || event.type === 'session_applied' || event.type === 'session_kept'
       ? 'success'
       : event.type === 'session_failed' || event.type === 'tests_failed'
         ? 'danger'
@@ -143,6 +148,13 @@ function phaseForEvent(event: VillageEvent): SessionPhase {
       return 'failed';
     case 'session_interrupted':
       return 'interrupted';
+    case 'diff_ready':
+      return 'reviewing';
+    case 'session_applied':
+    case 'session_kept':
+      return 'completed';
+    case 'session_discarded':
+      return 'idle';
   }
 }
 

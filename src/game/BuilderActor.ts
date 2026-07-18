@@ -8,6 +8,7 @@ const targets: Record<SessionPhase, { x: number; y: number }> = {
   reading: { x: -6, y: 20 }, editing: { x: 61, y: 24 }, testing: { x: 88, y: 52 },
   approval: { x: 4, y: 61 }, completed: { x: 38, y: 57 }, failed: { x: -50, y: 54 }, interrupted: { x: -78, y: 40 },
   input: { x: 4, y: 61 }, waiting: { x: 4, y: 61 }, needs_review: { x: -50, y: 54 }, external: { x: -78, y: 40 },
+  reviewing: { x: 20, y: 57 },
 };
 
 export class BuilderActor {
@@ -34,8 +35,8 @@ export class BuilderActor {
 
   update(phase: SessionPhase): void {
     this.queuedPhases = enqueueVisualPhase(this.displayedPhase, this.queuedPhases, phase);
-    if (phase === 'approval' || phase === 'input' || phase === 'waiting' || phase === 'needs_review' || phase === 'external' || phase === 'failed') this.advance();
-    if (this.displayedPhase === 'idle' || this.displayedPhase === 'completed' || this.displayedPhase === 'waiting' || this.displayedPhase === 'needs_review' || this.displayedPhase === 'external' || this.displayedPhase === 'interrupted') this.advance();
+    if (phase === 'approval' || phase === 'input' || phase === 'waiting' || phase === 'needs_review' || phase === 'external' || phase === 'reviewing' || phase === 'failed') this.advance();
+    if (this.displayedPhase === 'idle' || this.displayedPhase === 'completed' || this.displayedPhase === 'waiting' || this.displayedPhase === 'needs_review' || this.displayedPhase === 'external' || this.displayedPhase === 'reviewing' || this.displayedPhase === 'interrupted') this.advance();
   }
 
   tick(deltaMs: number): void {

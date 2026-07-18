@@ -1,6 +1,7 @@
-import type { ConnectionProof, InputResponse, PendingInputView, ProjectProgress, EnvironmentStatus, ProjectSelection } from '../../shared/village-events';
+import type { ConnectionProof, InputResponse, PendingInputView, PendingScaffoldView, ProjectProgress, EnvironmentStatus, ProjectSelection, SessionDiffView } from '../../shared/village-events';
 import type { SessionState } from '../../state/session-machine';
 import { ConnectionProofPanel } from './ConnectionProofPanel';
+import { InspectionCard } from './InspectionCard';
 import { InteractionCard } from './InteractionCard';
 
 interface TaskPanelProps {
@@ -13,6 +14,15 @@ interface TaskPanelProps {
   pendingInput: PendingInputView | null;
   inputSubmitting: boolean;
   inputError: string | null;
+  pendingScaffold: PendingScaffoldView | null;
+  sessionDiff: SessionDiffView | null;
+  landingBusy: boolean;
+  landingError: string | null;
+  onLoadDiff(): void;
+  onCloseDiff(): void;
+  onApply(): void;
+  onKeep(): void;
+  onDiscard(): void;
   proof: ConnectionProof | null;
   handoffNotice: string | null;
   error: string | null;
@@ -40,6 +50,7 @@ const phaseLabels: Record<SessionState['phase'], string> = {
   waiting: 'Builder is waiting for direction',
   needs_review: 'Result needs review',
   external: 'Conversation is in Ghostty',
+  reviewing: 'Improvement ready for inspection',
   completed: 'Improvement complete',
   failed: 'Construction failed',
   interrupted: 'Work interrupted',
@@ -55,6 +66,15 @@ export function TaskPanel({
   pendingInput,
   inputSubmitting,
   inputError,
+  pendingScaffold,
+  sessionDiff,
+  landingBusy,
+  landingError,
+  onLoadDiff,
+  onCloseDiff,
+  onApply,
+  onKeep,
+  onDiscard,
   proof,
   handoffNotice,
   error,
@@ -102,7 +122,7 @@ export function TaskPanel({
         </div>
       )}
 
-      {!sessionActive && !['completed', 'waiting', 'needs_review', 'external'].includes(session.phase) && (
+      {!sessionActive && !pendingScaffold && !['completed', 'waiting', 'needs_review', 'external', 'reviewing'].includes(session.phase) && (
         <label className="task-field">
           <span>What should the builder improve?</span>
           <textarea
@@ -117,6 +137,20 @@ export function TaskPanel({
       {pendingInput && <InteractionCard key={`${pendingInput.requestId ?? 'terminal'}-${pendingInput.source}`} request={pendingInput} submitting={inputSubmitting} error={inputError} onSubmit={onSubmitInput} />}
 
       {session.phase === 'needs_review' && <section className="review-card" aria-label="Result needs review"><strong>Completion was not verified</strong><p>The Codex turn ended without a valid completed or waiting result marker. Progression was not changed.</p></section>}
+
+      {pendingScaffold && !sessionActive && !pendingInput && (
+        <InspectionCard
+          scaffold={pendingScaffold}
+          diff={sessionDiff}
+          busy={landingBusy}
+          error={landingError}
+          onLoadDiff={onLoadDiff}
+          onCloseDiff={onCloseDiff}
+          onApply={onApply}
+          onKeep={onKeep}
+          onDiscard={onDiscard}
+        />
+      )}
 
       {session.events.length > 0 && (
         <section className="activity-section" aria-label="Safe activity timeline">
@@ -169,7 +203,7 @@ export function TaskPanel({
       <div className="panel-actions">
         {sessionActive ? (
           <button className="secondary-button" onClick={onInterrupt}>Stop safely</button>
-        ) : pendingInput || session.phase === 'external' ? null : session.phase === 'completed' || session.phase === 'needs_review' ? (
+        ) : pendingInput || session.phase === 'external' || pendingScaffold ? null : session.phase === 'completed' || session.phase === 'needs_review' ? (
           <button className="primary-button" onClick={onNewTask}>Plan another improvement</button>
         ) : (
           <button className="primary-button" onClick={onStart} disabled={!canStart}>

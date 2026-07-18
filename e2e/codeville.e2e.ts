@@ -75,7 +75,12 @@ test('deterministic protocol: native input, stopped-turn continuation, review, r
     const protocol = (await readFile(protocolLog, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
     const waitingThread = protocol.find((entry) => entry.method === 'turn/start' && entry.params?.input?.[0]?.text === 'fixture:waiting')?.params.threadId;
     expect(waitingThread).toBeTruthy();
-    expect(protocol.filter((entry) => entry.method === 'thread/start' && entry.params?.cwd === repositories[1])).toHaveLength(1);
+    const threadStarts = protocol.filter((entry) => entry.method === 'thread/start');
+    expect(threadStarts.length).toBeGreaterThanOrEqual(4);
+    for (const entry of threadStarts) {
+      expect(entry.params?.cwd).toContain('scaffolds');
+      expect(repositories).not.toContain(entry.params?.cwd);
+    }
     expect(protocol.some((entry) => entry.method === 'thread/resume' && entry.params?.threadId === waitingThread && entry.params?.sandbox === 'workspace-write' && entry.params?.approvalPolicy === 'on-request')).toBe(true);
     expect(protocol.some((entry) => entry.method === 'turn/start' && entry.params?.threadId === waitingThread && entry.params?.input?.[0]?.text === 'Stable')).toBe(true);
     const persisted = await readFile(join(userData, 'progression.json'), 'utf8');
@@ -91,6 +96,8 @@ async function createSafeRepository(root: string, name: string): Promise<string>
   await mkdir(repository);
   await writeFile(join(repository, 'README.md'), `# ${name}\n`);
   await executeFile('git', ['init', '-b', 'main'], { cwd: repository });
+  await executeFile('git', ['add', '-A'], { cwd: repository });
+  await executeFile('git', ['-c', 'user.name=E2E', '-c', 'user.email=e2e@local', 'commit', '-m', 'initial'], { cwd: repository });
   return repository;
 }
 
@@ -157,18 +164,27 @@ test(`runs ${projectCount} real Codex builders without replacing the village can
       await expect(page.getByRole('button', { name: /stop safely/i })).toBeVisible({ timeout: 30_000 });
     }
 
-    await expect(page.locator('.project-tab.phase-completed')).toHaveCount(projectCount, { timeout: 240_000 });
+    await expect(page.locator('.project-tab.phase-reviewing')).toHaveCount(projectCount, { timeout: 240_000 });
     await expect(page.locator('.village-canvas canvas')).toHaveAttribute('data-identity', 'persistent-scene');
 
     for (const [slot, name] of projectNames.slice(0, projectCount).entries()) {
+      const demoProject = join(userData, 'demo-village', `lot-${slot + 1}`);
+      // The scaffold contract: the checkout is untouched until the improvement is applied.
+      expect(await readFile(join(demoProject, 'src/health.js'), 'utf8')).toContain('Not implemented');
       await page.getByRole('button', { name: new RegExp(name) }).click();
       await expect(page.getByLabel('Builder completion debrief')).toBeVisible();
       await expect(page.getByLabel(`${1} completed sessions`)).toBeVisible();
-      const demoProject = join(userData, 'demo-village', `lot-${slot + 1}`);
+      await expect(page.getByLabel('Improvement ready for inspection')).toBeVisible();
+      await page.getByRole('button', { name: /install in repository/i }).click();
+      await expect(page.getByLabel('Improvement ready for inspection')).toBeHidden();
       expect(await readFile(join(demoProject, 'src/health.js'), 'utf8')).not.toContain('Not implemented');
       const { stdout } = await executeFile('npm', ['test'], { cwd: demoProject });
       expect(stdout).toContain('pass 4');
+      const { stdout: gitStatus } = await executeFile('git', ['status', '--porcelain'], { cwd: demoProject });
+      expect(gitStatus.trim()).toBe('');
     }
+
+    await expect(page.locator('.project-tab.phase-completed')).toHaveCount(projectCount);
 
     const progression = JSON.parse(await readFile(join(userData, 'progression.json'), 'utf8')) as { version: number; lots: Array<{ projectId: string }>; projects: Record<string, { level: number }> };
     expect(progression.version).toBe(2);
@@ -211,7 +227,7 @@ test('opt-in: runs explicitly supplied real repositories concurrently', async ()
       await expect(dialog).toContainText(project.task);
     }
     await page.getByRole('button', { name: /confirm and start builders/i }).click();
-    await expect(page.locator('.project-tab.phase-completed')).toHaveCount(projects.length, { timeout: 540_000 });
+    await expect(page.locator('.project-tab.phase-reviewing, .project-tab.phase-completed')).toHaveCount(projects.length, { timeout: 540_000 });
   } finally {
     await electronApp.close();
   }

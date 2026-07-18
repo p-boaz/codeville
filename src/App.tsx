@@ -5,7 +5,7 @@ import { BatchLaunchDialog } from './features/task/BatchLaunchDialog';
 import { TaskPanel } from './features/task/TaskPanel';
 import { ProjectRail } from './features/village/ProjectRail';
 import { VillageCanvas } from './game/VillageCanvas';
-import type { ApprovalRequestView, BatchLaunchProject, ConnectionProof, EnvironmentStatus, InputResponse, PendingInputView, ProgressionData, ProjectProgress, ProjectSelection, VillageLot } from './shared/village-events';
+import type { ApprovalRequestView, BatchLaunchProject, ConnectionProof, EnvironmentStatus, InputResponse, PendingInputView, PendingScaffoldView, ProgressionData, ProjectProgress, ProjectSelection, SessionDiffView, VillageLot } from './shared/village-events';
 import { beginSession, initialSessionState, projectProgress, reduceSession, resetSession, type SessionState } from './state/session-machine';
 import { batchLaunchProjects, updateProjectTask } from './state/project-tasks';
 
@@ -31,6 +31,10 @@ export function App() {
   const [inputSubmitting, setInputSubmitting] = useState(false);
   const [inputError, setInputError] = useState<string | null>(null);
   const [proof, setProof] = useState<ConnectionProof | null>(null);
+  const [scaffoldViews, setScaffoldViews] = useState<Record<string, PendingScaffoldView>>({});
+  const [sessionDiff, setSessionDiff] = useState<SessionDiffView | null>(null);
+  const [landingBusy, setLandingBusy] = useState(false);
+  const [landingError, setLandingError] = useState<string | null>(null);
   const [handoffNotice, setHandoffNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [projectErrors, setProjectErrors] = useState<Record<string, string>>({});
@@ -43,10 +47,26 @@ export function App() {
       setInputs(Object.fromEntries(Object.entries(nextProgression.projects).flatMap(([projectId, project]) => project.pendingInput ? [[projectId, { ...project.pendingInput, projectId, requestId: null }]] : [])));
       const first = nextProgression.lots.find((lot) => lot.projectId);
       if (first) { setSelectedSlot(first.slot); setSelectedProjectId(first.projectId); }
+      for (const lot of nextProgression.lots) {
+        if (!lot.projectId) continue;
+        const projectId = lot.projectId;
+        void window.codeville.getPendingScaffold(projectId).then((view) => {
+          if (view) setScaffoldViews((current) => ({ ...current, [projectId]: view }));
+        }).catch(() => undefined);
+      }
     });
     const unsubscribeEvent = window.codeville.onVillageEvent(({ projectId, event }) => {
       setSessions((current) => ({ ...current, [projectId]: reduceSession(current[projectId] ?? initialSessionState, event) }));
       if (event.type === 'session_completed') void window.codeville.getProgression().then(setProgression);
+      if (event.type === 'diff_ready') {
+        void window.codeville.getPendingScaffold(projectId).then((view) => {
+          if (view) setScaffoldViews((current) => ({ ...current, [projectId]: view }));
+        }).catch(() => undefined);
+      }
+      if (event.type === 'session_applied' || event.type === 'session_kept' || event.type === 'session_discarded') {
+        setScaffoldViews((current) => { const next = { ...current }; delete next[projectId]; return next; });
+        void window.codeville.getProgression().then(setProgression);
+      }
     });
     const unsubscribeApproval = window.codeville.onApprovalRequest((request) => {
       setApproval(request);
@@ -104,7 +124,33 @@ export function App() {
   function selectLot(slot: VillageLot['slot'], projectId: string | null) {
     setSelectedSlot(slot);
     setSelectedProjectId(projectId);
+    setSessionDiff(null);
+    setLandingError(null);
     setError(null);
+  }
+
+  async function loadDiff() {
+    if (!selectedProjectId) return;
+    setLandingBusy(true); setLandingError(null);
+    try { setSessionDiff(await window.codeville.getSessionDiff(selectedProjectId)); }
+    catch (cause) { setLandingError(cause instanceof Error ? cause.message : 'The diff could not be loaded.'); }
+    finally { setLandingBusy(false); }
+  }
+
+  async function landSession(action: 'apply' | 'keep' | 'discard') {
+    if (!selectedProjectId) return;
+    const projectId = selectedProjectId;
+    setLandingBusy(true); setLandingError(null);
+    try {
+      if (action === 'apply') await window.codeville.applySession(projectId);
+      else if (action === 'keep') await window.codeville.keepSession(projectId);
+      else await window.codeville.discardSession(projectId);
+      setSessionDiff(null);
+      setScaffoldViews((current) => { const next = { ...current }; delete next[projectId]; return next; });
+      setProgression(await window.codeville.getProgression());
+    } catch (cause) {
+      setLandingError(cause instanceof Error ? cause.message : 'The landing action failed. The scaffold branch is unchanged.');
+    } finally { setLandingBusy(false); }
   }
 
   async function chooseProject() {
@@ -271,7 +317,7 @@ export function App() {
           <div className="stage-heading"><span className="eyebrow">Willow Ward · Five live lots</span><h1>{allDemo ? 'The whole village is awake' : 'Your agents, building side by side'}</h1><p>Every movement comes from a real, project-scoped Codex event.</p></div>
           {!progression.lots.some((lot) => lot.projectId) && <div className="empty-village-cta"><strong>Build a five-project demo village</strong><span>Five isolated repositories. Five real Codex builders. One living map.</span><button onClick={useDemoVillage}>Create demo village <span>→</span></button></div>}
         </div>
-        <TaskPanel environment={environment} project={selectedProject} task={task} session={session} progress={progress} sessionActive={sessionActive} pendingInput={pendingInput} inputSubmitting={inputSubmitting} inputError={inputError} proof={proof} handoffNotice={handoffNotice} error={(selectedProjectId && projectErrors[selectedProjectId]) || error} onTaskChange={(value) => selectedProjectId && setTasks((current) => updateProjectTask(current, selectedProjectId, value))} onChooseProject={chooseProject} onUseDemoVillage={useDemoVillage} onStart={startSession} onInterrupt={interruptSession} onSubmitInput={submitInput} onHandoff={handoffToGhostty} onReclaim={reclaimFromGhostty} onNewTask={newTask} onResetVillage={resetVillage} />
+        <TaskPanel environment={environment} project={selectedProject} task={task} session={session} progress={progress} sessionActive={sessionActive} pendingInput={pendingInput} inputSubmitting={inputSubmitting} inputError={inputError} pendingScaffold={selectedProjectId ? scaffoldViews[selectedProjectId] ?? null : null} sessionDiff={sessionDiff} landingBusy={landingBusy} landingError={landingError} onLoadDiff={loadDiff} onCloseDiff={() => setSessionDiff(null)} onApply={() => landSession('apply')} onKeep={() => landSession('keep')} onDiscard={() => landSession('discard')} proof={proof} handoffNotice={handoffNotice} error={(selectedProjectId && projectErrors[selectedProjectId]) || error} onTaskChange={(value) => selectedProjectId && setTasks((current) => updateProjectTask(current, selectedProjectId, value))} onChooseProject={chooseProject} onUseDemoVillage={useDemoVillage} onStart={startSession} onInterrupt={interruptSession} onSubmitInput={submitInput} onHandoff={handoffToGhostty} onReclaim={reclaimFromGhostty} onNewTask={newTask} onResetVillage={resetVillage} />
       </section>
       {approval && <ApprovalDialog request={approval} onDecision={respondToApproval} />}
       {pendingBatch && <BatchLaunchDialog projects={pendingBatch} onCancel={() => setPendingBatch(null)} onConfirm={confirmBatch} />}
