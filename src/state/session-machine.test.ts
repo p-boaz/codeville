@@ -17,6 +17,7 @@ describe('session state machine', () => {
     const completed = reduceSession(editing, {
       type: 'session_completed',
       at: '2026-07-18T00:00:02.000Z',
+      debrief: { landed: 'Work completed.', followUp: 'No follow-up recommended.', followUpRecommended: false },
     });
 
     expect(started.phase).toBe('planning');
@@ -30,9 +31,14 @@ describe('session state machine', () => {
   });
 
   it('returns a zero-level lot when no project has persisted progress', () => {
-    expect(projectProgress({ version: 1, projects: {} }, '/tmp/new-project')).toEqual({
+    expect(projectProgress({
+      version: 2,
+      lots: [0, 1, 2, 3, 4].map((slot) => ({ slot, projectId: null, path: null, name: null, isDemo: false })) as never,
+      projects: {},
+    }, 'project-id')).toEqual({
       level: 0,
       completedSessions: 0,
+      lastDebrief: null,
     });
   });
 });

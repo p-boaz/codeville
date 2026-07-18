@@ -1,10 +1,5 @@
-import type { EnvironmentStatus } from '../../shared/village-events';
+import type { EnvironmentStatus, ProjectSelection } from '../../shared/village-events';
 import type { SessionState } from '../../state/session-machine';
-
-interface ProjectSelection {
-  path: string;
-  name: string;
-}
 
 interface TaskPanelProps {
   environment: EnvironmentStatus | null;
@@ -12,10 +7,11 @@ interface TaskPanelProps {
   task: string;
   session: SessionState;
   sessionActive: boolean;
+  progress: { level: number; completedSessions: number; lastDebrief: import('../../shared/village-events').CompletionDebrief | null };
   error: string | null;
   onTaskChange(task: string): void;
   onChooseProject(): void;
-  onUseDemoProject(): void;
+  onUseDemoVillage(): void;
   onStart(): void;
   onInterrupt(): void;
   onNewTask(): void;
@@ -41,10 +37,11 @@ export function TaskPanel({
   task,
   session,
   sessionActive,
+  progress,
   error,
   onTaskChange,
   onChooseProject,
-  onUseDemoProject,
+  onUseDemoVillage,
   onStart,
   onInterrupt,
   onNewTask,
@@ -70,10 +67,17 @@ export function TaskPanel({
         </button>
       </section>
       {!project && !sessionActive && (
-        <button className="demo-button" onClick={onUseDemoProject}>
+        <button className="demo-button" onClick={onUseDemoVillage}>
           <span aria-hidden="true">✦</span>
-          Use the judge-ready demo project
+          Create the five-project demo village
         </button>
+      )}
+
+      {project && (
+        <div className="project-stats" aria-label={`${progress.completedSessions} completed sessions`}>
+          <span>Lot {String(project.slot + 1).padStart(2, '0')}</span>
+          <span>Workshop level <strong>{progress.level}</strong></span>
+        </div>
       )}
 
       {!sessionActive && session.phase !== 'completed' && (
@@ -103,6 +107,14 @@ export function TaskPanel({
               </li>
             ))}
           </ol>
+        </section>
+      )}
+
+      {(session.debrief ?? progress.lastDebrief) && (
+        <section className="debrief-card" aria-label="Builder completion debrief">
+          <span className="eyebrow">Builder debrief</span>
+          <div><strong>Landed</strong><p>{(session.debrief ?? progress.lastDebrief)!.landed}</p></div>
+          <div><strong>{(session.debrief ?? progress.lastDebrief)!.followUpRecommended ? 'Recommended follow-up' : 'Follow-up'}</strong><p>{(session.debrief ?? progress.lastDebrief)!.followUp}</p></div>
         </section>
       )}
 

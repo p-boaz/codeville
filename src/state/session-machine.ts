@@ -1,4 +1,4 @@
-import type { ProgressionData, VillageEvent } from '../shared/village-events';
+import type { CompletionDebrief, ProgressionData, VillageEvent } from '../shared/village-events';
 
 export type SessionPhase =
   | 'idle'
@@ -24,6 +24,7 @@ export interface SessionState {
   model: string | null;
   events: ActivityEntry[];
   testsPassed: boolean;
+  debrief: CompletionDebrief | null;
 }
 
 export const initialSessionState: SessionState = {
@@ -31,6 +32,7 @@ export const initialSessionState: SessionState = {
   model: null,
   events: [],
   testsPassed: false,
+  debrief: null,
 };
 
 const labels: Record<VillageEvent['type'], string> = {
@@ -67,6 +69,7 @@ export function reduceSession(state: SessionState, event: VillageEvent): Session
         : event.type === 'tests_failed'
           ? false
           : state.testsPassed,
+    debrief: event.type === 'session_completed' ? event.debrief : state.debrief,
     events: [
       ...state.events,
       {
@@ -96,7 +99,7 @@ function commandActivityLabel(category: Extract<VillageEvent, { type: 'running_c
 }
 
 export function beginSession(state: SessionState): SessionState {
-  return { ...state, phase: 'starting', events: [], testsPassed: false };
+  return { ...state, phase: 'starting', events: [], testsPassed: false, debrief: null };
 }
 
 export function resetSession(): SessionState {
@@ -129,8 +132,8 @@ function phaseForEvent(event: VillageEvent): SessionPhase {
 
 export function projectProgress(
   progression: ProgressionData,
-  projectPath: string | null,
-): { level: number; completedSessions: number } {
-  if (!projectPath) return { level: 0, completedSessions: 0 };
-  return progression.projects[projectPath] ?? { level: 0, completedSessions: 0 };
+  projectId: string | null,
+): { level: number; completedSessions: number; lastDebrief: CompletionDebrief | null } {
+  if (!projectId) return { level: 0, completedSessions: 0, lastDebrief: null };
+  return progression.projects[projectId] ?? { level: 0, completedSessions: 0, lastDebrief: null };
 }

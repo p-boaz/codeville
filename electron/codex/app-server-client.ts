@@ -5,6 +5,7 @@ import type { ServerNotification } from './generated/ServerNotification';
 import type { ServerRequest } from './generated/ServerRequest';
 import type { ThreadStartResponse } from './generated/v2/ThreadStartResponse';
 import type { TurnStartResponse } from './generated/v2/TurnStartResponse';
+import { debriefDeveloperInstructions } from '../../src/codex/debrief';
 
 interface JsonRpcSuccess {
   id: number | string;
@@ -89,6 +90,7 @@ export class AppServerClient {
       approvalPolicy: 'on-request',
       sandbox: 'workspace-write',
       serviceName: 'codeville',
+      developerInstructions: debriefDeveloperInstructions,
       ephemeral: false,
     });
   }
