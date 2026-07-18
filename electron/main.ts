@@ -536,12 +536,25 @@ function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
+/** Quit-during-finalize leaves scaffolds behind: seal work that exists, discard provably-empty ones. */
+async function reconcileOrphanScaffolds(): Promise<void> {
+  for (const record of await scaffolds.listOrphans(new Set())) {
+    try {
+      await scaffolds.checkpoint(record);
+      const stats = await scaffolds.diffStats(record);
+      if (stats.filesChanged === 0) await scaffolds.discard(record);
+    } catch (cause) {
+      console.warn(`[scaffold] orphan reconcile failed for ${record.sessionId}: ${cause instanceof Error ? cause.message : String(cause)}`);
+    }
+  }
+}
+
 app.whenReady().then(() => {
   store = new ProgressionStore(app.getPath('userData'));
   scaffolds = new ScaffoldManager(join(app.getPath('userData'), 'scaffolds'));
   registerIpc();
   createWindow();
-  void updateAttentionBadge();
+  void reconcileOrphanScaffolds().then(updateAttentionBadge);
 });
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 app.on('before-quit', () => { void client?.stop(); });
