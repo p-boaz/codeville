@@ -1,0 +1,136 @@
+import type { ProgressionData, VillageEvent } from '../shared/village-events';
+
+export type SessionPhase =
+  | 'idle'
+  | 'starting'
+  | 'planning'
+  | 'reading'
+  | 'editing'
+  | 'testing'
+  | 'approval'
+  | 'completed'
+  | 'failed'
+  | 'interrupted';
+
+export interface ActivityEntry {
+  id: string;
+  at: string;
+  label: string;
+  tone: 'neutral' | 'active' | 'success' | 'danger';
+}
+
+export interface SessionState {
+  phase: SessionPhase;
+  model: string | null;
+  events: ActivityEntry[];
+  testsPassed: boolean;
+}
+
+export const initialSessionState: SessionState = {
+  phase: 'idle',
+  model: null,
+  events: [],
+  testsPassed: false,
+};
+
+const labels: Record<VillageEvent['type'], string> = {
+  session_started: 'Builder arrived',
+  planning: 'Drawing construction plans',
+  reading: 'Studying the project',
+  editing: 'Building the improvement',
+  running_command: 'Running an inspection',
+  approval_required: 'Waiting for your decision',
+  tests_passed: 'Inspection passed',
+  tests_failed: 'Inspection found a problem',
+  session_completed: 'Improvement completed',
+  session_failed: 'Construction paused',
+  session_interrupted: 'Work stopped safely',
+};
+
+export function reduceSession(state: SessionState, event: VillageEvent): SessionState {
+  const phase = phaseForEvent(event);
+  const tone: ActivityEntry['tone'] =
+    event.type === 'session_completed' || event.type === 'tests_passed'
+      ? 'success'
+      : event.type === 'session_failed' || event.type === 'tests_failed'
+        ? 'danger'
+        : phase === 'idle'
+          ? 'neutral'
+          : 'active';
+
+  return {
+    phase,
+    model: event.type === 'session_started' ? event.model : state.model,
+    testsPassed:
+      event.type === 'tests_passed'
+        ? true
+        : event.type === 'tests_failed'
+          ? false
+          : state.testsPassed,
+    events: [
+      ...state.events,
+      {
+        id: `${event.at}-${event.type}-${state.events.length}`,
+        at: event.at,
+        label:
+          event.type === 'running_command'
+            ? commandActivityLabel(event.category)
+            : labels[event.type],
+        tone,
+      },
+    ].slice(-8),
+  };
+}
+
+function commandActivityLabel(category: Extract<VillageEvent, { type: 'running_command' }>['category']): string {
+  switch (category) {
+    case 'test':
+      return 'Running a code inspection';
+    case 'build':
+      return 'Assembling the project';
+    case 'lint':
+      return 'Checking craftsmanship';
+    case 'other':
+      return 'Using local workshop tools';
+  }
+}
+
+export function beginSession(state: SessionState): SessionState {
+  return { ...state, phase: 'starting', events: [], testsPassed: false };
+}
+
+export function resetSession(): SessionState {
+  return initialSessionState;
+}
+
+function phaseForEvent(event: VillageEvent): SessionPhase {
+  switch (event.type) {
+    case 'session_started':
+    case 'planning':
+      return 'planning';
+    case 'reading':
+      return 'reading';
+    case 'editing':
+      return 'editing';
+    case 'running_command':
+    case 'tests_passed':
+    case 'tests_failed':
+      return 'testing';
+    case 'approval_required':
+      return 'approval';
+    case 'session_completed':
+      return 'completed';
+    case 'session_failed':
+      return 'failed';
+    case 'session_interrupted':
+      return 'interrupted';
+  }
+}
+
+export function projectProgress(
+  progression: ProgressionData,
+  projectPath: string | null,
+): { level: number; completedSessions: number } {
+  if (!projectPath) return { level: 0, completedSessions: 0 };
+  return progression.projects[projectPath] ?? { level: 0, completedSessions: 0 };
+}

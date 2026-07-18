@@ -1,0 +1,82 @@
+{
+  "name": "codeville",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A living desktop village driven by real Codex sessions.",
+  "main": "dist-electron/main.cjs",
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "packageManager": "pnpm@10.33.4",
+  "scripts": {
+    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"tsup electron/main.ts electron/preload.ts --format cjs --platform node --external electron --out-dir dist-electron --watch --onSuccess 'touch dist-electron/.ready'\" \"wait-on http://127.0.0.1:5173 dist-electron/.ready && electron .\"",
+    "dev:renderer": "vite --host 127.0.0.1",
+    "generate:codex": "codex app-server generate-ts --out electron/codex/generated",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "pnpm build:electron && playwright test",
+    "build:renderer": "vite build",
+    "build:electron": "tsup electron/main.ts electron/preload.ts --format cjs --platform node --external electron --out-dir dist-electron",
+    "build": "pnpm build:renderer && pnpm build:electron",
+    "package:mac": "pnpm build && electron-builder --mac dir",
+    "package:dmg": "pnpm build && electron-builder --mac dmg",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
+  },
+  "dependencies": {
+    "pixi.js": "8.19.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.61.1",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.2",
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.1",
+    "concurrently": "9.2.1",
+    "electron": "43.1.1",
+    "electron-builder": "26.15.3",
+    "eslint": "10.7.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.2",
+    "globals": "17.4.0",
+    "jsdom": "29.0.1",
+    "tsup": "8.5.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.64.0",
+    "vite": "8.1.5",
+    "vitest": "4.1.0",
+    "wait-on": "9.0.4"
+  },
+  "build": {
+    "appId": "com.codeville.desktop",
+    "productName": "Codeville",
+    "asar": true,
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dir"
+      ]
+    },
+    "extraResources": [
+      {
+        "from": "fixtures/demo-repo",
+        "to": "demo-repo"
+      }
+    ],
+    "directories": {
+      "output": "release"
+    }
+  }
+}
