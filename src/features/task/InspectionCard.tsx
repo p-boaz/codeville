@@ -23,6 +23,7 @@ interface InspectionCardProps {
   onKeep(): void;
   onDiscard(): void;
   onOpenScaffold(): void;
+  onRefresh(): void;
 }
 
 /**
@@ -30,7 +31,7 @@ interface InspectionCardProps {
  * scaffold branch, the full diff on demand, and the three landing verbs.
  * Nothing reaches the user's checkout until Apply.
  */
-export function InspectionCard({ scaffold, diff, busy, error, onLoadDiff, onCloseDiff, onApply, onKeep, onDiscard, onOpenScaffold }: InspectionCardProps) {
+export function InspectionCard({ scaffold, diff, busy, error, onLoadDiff, onCloseDiff, onApply, onKeep, onDiscard, onOpenScaffold, onRefresh }: InspectionCardProps) {
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
 
   return (
@@ -43,6 +44,12 @@ export function InspectionCard({ scaffold, diff, busy, error, onLoadDiff, onClos
         {scaffold.outcome && <span className="fact-line" aria-label="Verified session facts">{factLine(scaffold.outcome)}</span>}
       </div>
       <p className="inspection-base">On branch <code>{scaffold.branch}</code>, built from “{scaffold.baseSubject}”. Your checkout is untouched until you apply.</p>
+
+      {scaffold.baseStale && (
+        <div className="overlap-warning" role="note" aria-label="Repository moved ahead">
+          <p>⚠ The repository's HEAD has moved since this improvement was built. <button className="text-button inline" onClick={onRefresh} disabled={busy}>Refresh to latest</button> to rebase it, or land as-is and resolve any conflict.</p>
+        </div>
+      )}
 
       {scaffold.overlaps.length > 0 && (
         <div className="overlap-warning" role="note" aria-label="Overlapping pending improvement">

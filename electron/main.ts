@@ -540,7 +540,14 @@ function registerIpc(): void {
       deletions: stats.deletions,
       outcome: record.outcome ?? null,
       overlaps,
+      baseStale: await scaffolds.isBaseStale(record),
     };
+  });
+  ipcMain.handle('scaffold:refresh', async (_event, projectId: string) => {
+    if (runtimes.forProject(projectId)?.turnId) throw new Error('The builder is still working. Wait for the turn to finish before refreshing.');
+    const record = await requireScaffold(projectId);
+    await scaffolds.checkpoint(record);
+    await scaffolds.refresh(record);
   });
   ipcMain.handle('wall:set', (_event, on: boolean) => { wallModeActive = Boolean(on); });
   ipcMain.handle('scaffold:diff', async (_event, projectId: string) => {

@@ -160,6 +160,38 @@ describe('ScaffoldManager', () => {
     expect(await manager.sharedChangedPaths(second, first)).toEqual(['health.js']);
   });
 
+  it('refreshes a stale scaffold onto the moved HEAD and then lands cleanly', async () => {
+    const { repo, manager, record } = await makeScaffold();
+    await writeFile(join(record.scaffoldPath, 'added.js'), 'module.exports = 3;\n');
+    await manager.checkpoint(record);
+    expect(await manager.isBaseStale(record)).toBe(false);
+    await writeFile(join(repo, 'health.js'), 'module.exports = () => 7;\n');
+    await git(repo, ['commit', '-am', 'user moved on']);
+    expect(await manager.isBaseStale(record)).toBe(true);
+    const { record: refreshed, upToDate } = await manager.refresh(record);
+    expect(upToDate).toBe(false);
+    expect(refreshed.baseSubject).toBe('user moved on');
+    const stats = await manager.diffStats(refreshed);
+    expect(stats.changedPaths).toEqual(['added.js']);
+    await manager.apply(refreshed, 'Land refreshed work');
+    expect(await readFile(join(repo, 'added.js'), 'utf8')).toContain('= 3');
+    expect(await readFile(join(repo, 'health.js'), 'utf8')).toContain('=> 7');
+    expect(await git(repo, ['status', '--porcelain'])).toBe('');
+  });
+
+  it('aborts a conflicting refresh and leaves the scaffold exactly as it was', async () => {
+    const { repo, manager, record } = await makeScaffold();
+    await writeFile(join(record.scaffoldPath, 'health.js'), 'module.exports = () => 2;\n');
+    await manager.checkpoint(record);
+    await writeFile(join(repo, 'health.js'), 'module.exports = () => 7;\n');
+    await git(repo, ['commit', '-am', 'conflicting change']);
+    await expect(manager.refresh(record)).rejects.toThrow(/cannot be refreshed automatically/);
+    const stats = await manager.diffStats(record);
+    expect(stats.changedPaths).toEqual(['health.js']);
+    expect(await readFile(join(record.scaffoldPath, 'health.js'), 'utf8')).toContain('=> 2');
+    expect(await git(repo, ['status', '--porcelain'])).toBe('');
+  });
+
   it('refuses a repository with no commits with a plain-language error', async () => {
     const repo = await mkdtemp(join(tmpdir(), 'codeville-empty-'));
     await git(repo, ['-c', 'init.defaultBranch=main', 'init']);

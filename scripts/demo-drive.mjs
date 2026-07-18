@@ -60,20 +60,24 @@ narrate('Beat 6 — Install in repository: one squash commit lands, the workshop
 await page.getByRole('button', { name: /install in repository/i }).click();
 await sleep(beatPause);
 
-narrate('Beat 7 — Install two more; leave two flying pennants to show the mixed state');
-for (const name of ['Lantern API', 'Mossy Docs']) {
-  await page.getByRole('button', { name: new RegExp(name) }).click();
-  await sleep(1_500);
-  await page.getByRole('button', { name: /install in repository/i }).click();
-  await sleep(fast ? 1_500 : 4_000);
-}
+narrate('Beat 7 — Install Lantern API; leave two pennants flying to show the mixed state');
+await page.getByRole('button', { name: new RegExp('Lantern API') }).click();
+await sleep(1_500);
+await page.getByRole('button', { name: /install in repository/i }).click();
+await sleep(fast ? 1_500 : 4_000);
 
-narrate('Beat 8 — Queue a work order on Acorn Tasks (persisted, starts only on your say-so)');
-await page.getByRole('button', { name: /Acorn Tasks/ }).click();
+narrate('Beat 8 — Queue a work order on Mossy Docs, then install: the next order starts by itself');
+await page.getByRole('button', { name: /Mossy Docs/ }).click();
 await page.locator('.orders-panel summary').click();
 await page.getByLabel('New work order').fill('Add an edge-case test for empty projects');
 await page.getByRole('button', { name: 'Add', exact: true }).click();
+await sleep(fast ? 1_500 : 3_000);
+await page.getByRole('button', { name: /install in repository/i }).click();
+await page.getByRole('button', { name: /stop safely/i }).waitFor({ timeout: 30_000 });
+narrate('Mossy Docs installed AND its queued order auto-started — the lane stays saturated');
 await sleep(beatPause);
+await page.getByRole('button', { name: /stop safely/i }).click();
+await sleep(fast ? 1_500 : 3_000);
 
 narrate('Beat 9 — Quit and relaunch: town, levels, plaques, ledger, queue, and pending inspections all restore');
 await app.close();

@@ -28,6 +28,7 @@ const bridge: CodevilleBridge = {
   getPendingScaffold: (projectId) => ipcRenderer.invoke('scaffold:pending', projectId),
   getSessionDiff: (projectId) => ipcRenderer.invoke('scaffold:diff', projectId),
   applySession: (projectId) => ipcRenderer.invoke('scaffold:apply', projectId),
+  refreshSession: (projectId) => ipcRenderer.invoke('scaffold:refresh', projectId),
   keepSession: (projectId) => ipcRenderer.invoke('scaffold:keep', projectId),
   discardSession: (projectId) => ipcRenderer.invoke('scaffold:discard', projectId),
   getProgression: () => ipcRenderer.invoke('progression:get'),

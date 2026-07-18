@@ -19,12 +19,13 @@ const scaffold = {
     followUpRecommended: false,
   },
   overlaps: [{ workshopName: 'graphletter · 2', sharedFiles: 1 }],
+  baseStale: false,
 };
 
 describe('InspectionCard', () => {
   it('shows verified counts and requires a second click before discarding', () => {
     const onDiscard = vi.fn();
-    render(<InspectionCard scaffold={scaffold} diff={null} busy={false} error={null} onLoadDiff={vi.fn()} onCloseDiff={vi.fn()} onApply={vi.fn()} onKeep={vi.fn()} onDiscard={onDiscard} onOpenScaffold={vi.fn()} />);
+    render(<InspectionCard scaffold={scaffold} diff={null} busy={false} error={null} onLoadDiff={vi.fn()} onCloseDiff={vi.fn()} onApply={vi.fn()} onKeep={vi.fn()} onDiscard={onDiscard} onOpenScaffold={vi.fn()} onRefresh={vi.fn()} />);
     expect(screen.getByText('2 files changed')).toBeVisible();
     expect(screen.getByText('+14')).toBeVisible();
     expect(screen.getByLabelText('Verified session facts')).toHaveTextContent('tests passed · 6m 12s');
@@ -49,7 +50,7 @@ describe('InspectionCard', () => {
       files: [{ path: 'src/health.js', insertions: 1, deletions: 1, patch: '-old line\n+new line' }],
       overlapPaths: ['src/health.js'],
     };
-    render(<InspectionCard scaffold={scaffold} diff={diff} busy={false} error={null} onLoadDiff={vi.fn()} onCloseDiff={vi.fn()} onApply={vi.fn()} onKeep={vi.fn()} onDiscard={vi.fn()} onOpenScaffold={vi.fn()} />);
+    render(<InspectionCard scaffold={scaffold} diff={diff} busy={false} error={null} onLoadDiff={vi.fn()} onCloseDiff={vi.fn()} onApply={vi.fn()} onKeep={vi.fn()} onDiscard={vi.fn()} onOpenScaffold={vi.fn()} onRefresh={vi.fn()} />);
     expect(screen.getByText(/⚠ src\/health\.js/)).toBeVisible();
     expect(screen.getByText(/\+new line/)).toBeVisible();
   });

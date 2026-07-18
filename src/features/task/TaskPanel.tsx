@@ -30,6 +30,7 @@ interface TaskPanelProps {
   onStartNextOrder(): void;
   onSteer(message: string): Promise<void>;
   onOpenScaffold(): void;
+  onRefresh(): void;
   proof: ConnectionProof | null;
   handoffNotice: string | null;
   error: string | null;
@@ -87,6 +88,7 @@ export function TaskPanel({
   onStartNextOrder,
   onSteer,
   onOpenScaffold,
+  onRefresh,
   proof,
   handoffNotice,
   error,
@@ -164,6 +166,7 @@ export function TaskPanel({
           onKeep={onKeep}
           onDiscard={onDiscard}
           onOpenScaffold={onOpenScaffold}
+          onRefresh={onRefresh}
         />
       )}
 
@@ -345,7 +348,7 @@ function WorkOrdersSection({ queue, canStartNext, onAdd, onDelete, onStartNext }
         <button className="secondary-button" disabled={!draft.trim()} onClick={() => { onAdd(draft); setDraft(''); }}>Add</button>
       </div>
       {canStartNext && <button className="primary-button" onClick={onStartNext}>Start next order <span aria-hidden="true">→</span></button>}
-      <small>Orders are stored on this Mac (see the privacy note) and start only when you say so.</small>
+      <small>Orders are stored on this Mac (see the privacy note). The next order starts automatically when an improvement lands; otherwise start it yourself here.</small>
     </details>
   );
 }

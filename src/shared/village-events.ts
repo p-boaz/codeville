@@ -206,6 +206,8 @@ export interface PendingScaffoldView {
   deletions: number;
   outcome: SessionOutcome | null;
   overlaps: ScaffoldOverlap[];
+  /** True when the repository's HEAD moved after this improvement was built. */
+  baseStale: boolean;
 }
 
 export interface SessionDiffFile {
@@ -255,6 +257,7 @@ export interface CodevilleBridge {
   getPendingScaffold(projectId: string): Promise<PendingScaffoldView | null>;
   getSessionDiff(projectId: string): Promise<SessionDiffView | null>;
   applySession(projectId: string): Promise<{ commit: string }>;
+  refreshSession(projectId: string): Promise<void>;
   keepSession(projectId: string): Promise<{ branch: string }>;
   discardSession(projectId: string): Promise<void>;
   getProgression(): Promise<ProgressionData>;

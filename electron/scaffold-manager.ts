@@ -203,6 +203,43 @@ export class ScaffoldManager {
     return next;
   }
 
+  /** True when the repository's HEAD has moved since this scaffold was created. */
+  async isBaseStale(record: ScaffoldRecord): Promise<boolean> {
+    try {
+      return (await this.revParseHead(record.repositoryPath)) !== record.baseCommit;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Rebase the scaffold branch onto the repository's current HEAD so a stale
+   * pending improvement can land cleanly instead of conflict-landing. On
+   * conflict the rebase is aborted and the scaffold is left exactly as it was.
+   */
+  async refresh(record: ScaffoldRecord): Promise<{ record: ScaffoldRecord; upToDate: boolean }> {
+    return this.withRepoLock(record.repositoryPath, async () => {
+      const head = await this.revParseHead(record.repositoryPath);
+      if (head === record.baseCommit) return { record, upToDate: true };
+      try {
+        await git(record.scaffoldPath, [
+          '-c', 'user.name=Codeville', '-c', 'user.email=codeville@local',
+          'rebase', head,
+        ]);
+      } catch (cause) {
+        await git(record.scaffoldPath, ['rebase', '--abort']).catch(() => undefined);
+        throw new ScaffoldError(
+          'This improvement conflicts with the latest repository changes, so it cannot be refreshed automatically. Land it as-is to see the conflict, keep the branch for a manual rebase, or discard it.',
+          { cause },
+        );
+      }
+      const { stdout: subject } = await git(record.repositoryPath, ['log', '-1', '--format=%s', head]);
+      const next = { ...record, baseCommit: head, baseSubject: subject.trim() };
+      await writeFile(this.recordPath(record.sessionId), JSON.stringify(next, null, 2), { mode: 0o600 });
+      return { record: next, upToDate: false };
+    });
+  }
+
   /** Paths changed by BOTH scaffolds — the files where whichever lands second may conflict. */
   async sharedChangedPaths(record: ScaffoldRecord, other: ScaffoldRecord): Promise<string[]> {
     const [mine, theirs] = await Promise.all([this.diffStats(record), this.diffStats(other)]);
