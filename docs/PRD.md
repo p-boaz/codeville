@@ -66,6 +66,7 @@ Core job: “While several Codex agents work, show me which project is planning,
 | F14 | Assign any existing local Git repository to any empty/reassigned lot using a UUID unrelated to its path. | Store and safe assignment E2E tests. |
 | F15 | Keep per-project task drafts isolated in memory. | Task-state and safe E2E switching tests. |
 | F16 | Select a real-project subset and require a prominent exact preflight before launch. | Batch projection, dialog, and E2E cancellation tests. |
+| F17 | Run multiple workshops on one repository: distinct identities per lot, concurrent sessions in separate scaffolds, serialized repo-mutating git operations, independent landings. | Concurrent-create/apply unit tests; two-workshop E2E with distinct scaffold cwds and a clean checkout. |
 
 ## Privacy-safe debrief contract
 

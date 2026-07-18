@@ -27,6 +27,7 @@ To run a smaller proof, select one project and click **Start building** instead.
 9. **Continue in Ghostty** is disabled during active work. After the turn stops, confirm handoff, then confirm the CLI session is closed before **Return control to Codeville**.
 10. A missing result marker displays **Result needs review** and leaves the completed-session count unchanged — but any real work the session produced is still inspectable and landable from its scaffold.
 11. While builders run, `git status` in your repository stays clean: nothing an agent does can reach your checkout until you click **Install in repository**. The dock badge counts decisions waiting on you, and background notifications name only the repository — never task text or code.
+11b. To run **two builders on one repository**, choose the same repository for a second lot and pick **Add a second workshop** in the dialog. Both builders work concurrently in separate scaffolds; each improvement is inspected and landed independently.
 12. Quit and reopen to verify assignments, UUID identity, progression, and safe debriefs restore. Task drafts intentionally do not restore.
 
 ## Source verification

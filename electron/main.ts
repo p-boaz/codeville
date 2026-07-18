@@ -354,6 +354,19 @@ function registerIpc(): void {
     if (!(await stat(path)).isDirectory()) throw new Error('Choose a repository directory');
     try { await access(join(path, '.git')); }
     catch { throw new Error('Choose a Git repository. Codeville will not initialize or modify repository metadata.'); }
+    const occupied = (await store.read()).lots.find((lot) => lot.path === path && lot.slot !== slot);
+    if (occupied) {
+      const { response } = await dialog.showMessageBox(window!, {
+        type: 'question',
+        buttons: ['Move to this lot', 'Add a second workshop', 'Cancel'],
+        defaultId: 0,
+        cancelId: 2,
+        message: `${basename(path)} is already assigned to lot ${occupied.slot + 1}.`,
+        detail: 'Move keeps its identity, levels, and ledger. A second workshop runs another builder on the same repository in parallel — each session works in its own isolated scaffold, and improvements land one at a time.',
+      });
+      if (response === 2) return null;
+      if (response === 1) return store.assignProject({ path, name: basename(path), slot, isDemo: false, secondWorkshop: true });
+    }
     return store.assignProject({ path, name: basename(path), slot, isDemo: false });
   });
   ipcMain.handle('project:demo-village', prepareDemoVillage);

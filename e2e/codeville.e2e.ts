@@ -108,15 +108,55 @@ async function createSafeRepository(root: string, name: string): Promise<string>
   return repository;
 }
 
-async function chooseRepository(electronApp: ElectronApplication, page: Page, slot: number, repository: string): Promise<void> {
-  await electronApp.evaluate(({ dialog }, selectedPath) => {
-    const mutableDialog = dialog as unknown as { showOpenDialog: () => Promise<{ canceled: boolean; filePaths: string[] }> };
-    mutableDialog.showOpenDialog = async () => ({ canceled: false, filePaths: [selectedPath] });
-  }, repository);
+async function chooseRepository(electronApp: ElectronApplication, page: Page, slot: number, repository: string, duplicateChoice: 0 | 1 = 0): Promise<void> {
+  await electronApp.evaluate(({ dialog }, options) => {
+    const mutableDialog = dialog as unknown as {
+      showOpenDialog: () => Promise<{ canceled: boolean; filePaths: string[] }>;
+      showMessageBox: () => Promise<{ response: number; checkboxChecked: boolean }>;
+    };
+    mutableDialog.showOpenDialog = async () => ({ canceled: false, filePaths: [options.selectedPath] });
+    mutableDialog.showMessageBox = async () => ({ response: options.duplicateChoice, checkboxChecked: false });
+  }, { selectedPath: repository, duplicateChoice });
   await page.getByRole('button', { name: new RegExp(`0${slot + 1}.*Empty lot`, 'i') }).click();
   await page.getByRole('button', { name: 'Choose repository', exact: true }).click();
-  await expect(page.getByRole('button', { name: new RegExp(basename(repository)) })).toBeVisible();
+  await expect(page.getByRole('button', { name: new RegExp(basename(repository)) }).first()).toBeVisible();
 }
+
+test('runs two workshops on the same repository in isolated scaffolds', async () => {
+  test.setTimeout(120_000);
+  const root = await mkdtemp(join(tmpdir(), 'codeville-second-workshop-e2e-'));
+  const userData = join(root, 'user-data');
+  const protocolLog = join(root, 'protocol.jsonl');
+  const shared = await createSafeRepository(root, 'shared-repo');
+  const fixtureEnv = { CODEVILLE_CODEX_BINARY: resolve('fixtures/fake-codex.mjs'), CODEVILLE_FAKE_LOG: protocolLog };
+  const electronApp = await electron.launch(launchOptions(userData, fixtureEnv));
+
+  try {
+    const page = await electronApp.firstWindow();
+    failOnRendererCrash(page);
+    await chooseRepository(electronApp, page, 0, shared);
+    await chooseRepository(electronApp, page, 1, shared, 1);
+    await expect(page.getByRole('button', { name: /01.*shared-repo/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /02.*shared-repo · 2/i })).toBeVisible();
+
+    for (const pattern of [/01.*shared-repo/i, /02.*shared-repo · 2/i]) {
+      await page.getByRole('button', { name: pattern }).click();
+      await page.getByPlaceholder('Describe one concrete coding task').fill('fixture:complete shared work');
+      await page.getByRole('button', { name: /start building/i }).click();
+    }
+    await expect(page.locator('.project-tab.phase-completed')).toHaveCount(2);
+
+    const protocol = (await readFile(protocolLog, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
+    const threadStarts = protocol.filter((entry) => entry.method === 'thread/start');
+    expect(threadStarts).toHaveLength(2);
+    expect(threadStarts[0].params.cwd).not.toBe(threadStarts[1].params.cwd);
+    for (const entry of threadStarts) expect(entry.params.cwd).toContain('scaffolds');
+    const { stdout } = await executeFile('git', ['status', '--porcelain'], { cwd: shared });
+    expect(stdout.trim()).toBe('');
+  } finally {
+    await electronApp.close();
+  }
+});
 
 test('assigns, restores, isolates tasks, and confirms a selected real-project subset without launching', async () => {
   const root = await mkdtemp(join(tmpdir(), 'codeville-safe-real-e2e-'));

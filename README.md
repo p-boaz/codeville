@@ -22,6 +22,8 @@ The fastest path requires no repository setup or rebuild:
 
 The demo modifies only disposable repositories under Codeville's app-data directory. To use your own repositories, select an empty lot, choose an existing Git repository, enter that project's task, and start it individually—or check several real-project cards and use **Start selected builders**. Codeville shows an explicit name/path/task preflight and starts nothing until you confirm.
 
+**Several builders can share one repository.** Choosing an already-assigned repository offers **Add a second workshop**: a distinct lot with its own builder, ledger, levels, and queue on the same repo. Every session still works in its own scaffold branch, repo-mutating git operations are serialized, and improvements land one at a time — a second landing that conflicts with the first fails cleanly with its branch kept.
+
 ## Supported platform
 
 - Judge test build: macOS on Apple silicon.

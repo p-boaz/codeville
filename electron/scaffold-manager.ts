@@ -49,12 +49,32 @@ export class ScaffoldError extends Error {}
  */
 export class ScaffoldManager {
   private readonly recordsDir: string;
+  /** Serializes repo-mutating git ops so several workshops can share one repository. */
+  private readonly repoLocks = new Map<string, Promise<void>>();
 
   constructor(private readonly root: string) {
     this.recordsDir = join(root, 'records');
   }
 
+  private async withRepoLock<T>(repositoryPath: string, operation: () => Promise<T>): Promise<T> {
+    const previous = this.repoLocks.get(repositoryPath) ?? Promise.resolve();
+    let release = () => {};
+    const tail = previous.then(() => new Promise<void>((resolveGate) => { release = resolveGate; }));
+    this.repoLocks.set(repositoryPath, tail);
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
+      if (this.repoLocks.get(repositoryPath) === tail) this.repoLocks.delete(repositoryPath);
+    }
+  }
+
   async create(repositoryPath: string, projectId: string, sessionId: string): Promise<ScaffoldRecord> {
+    return this.withRepoLock(repositoryPath, () => this.createLocked(repositoryPath, projectId, sessionId));
+  }
+
+  private async createLocked(repositoryPath: string, projectId: string, sessionId: string): Promise<ScaffoldRecord> {
     const baseCommit = await this.revParseHead(repositoryPath);
     const { stdout: subject } = await git(repositoryPath, ['log', '-1', '--format=%s', baseCommit]);
     const scaffoldPath = join(this.root, projectId, sessionId);
@@ -123,6 +143,10 @@ export class ScaffoldManager {
 
   /** Squash-merge the scaffold branch into the user's checkout as one commit. */
   async apply(record: ScaffoldRecord, message: string): Promise<{ commit: string }> {
+    return this.withRepoLock(record.repositoryPath, () => this.applyLocked(record, message));
+  }
+
+  private async applyLocked(record: ScaffoldRecord, message: string): Promise<{ commit: string }> {
     const { stdout: tracked } = await git(record.repositoryPath, ['status', '--porcelain', '--untracked-files=no']);
     if (tracked.trim()) {
       throw new ScaffoldError(
@@ -158,15 +182,19 @@ export class ScaffoldManager {
 
   /** Remove the worktree but keep the branch for the user's own merge/PR flow. */
   async keep(record: ScaffoldRecord): Promise<void> {
-    await this.removeWorktree(record);
-    await this.forget(record.sessionId);
+    await this.withRepoLock(record.repositoryPath, async () => {
+      await this.removeWorktree(record);
+      await this.forget(record.sessionId);
+    });
   }
 
   /** Remove the worktree AND the branch. The only destructive verb in the app. */
   async discard(record: ScaffoldRecord): Promise<void> {
-    await this.removeWorktree(record);
-    await git(record.repositoryPath, ['branch', '-D', record.branch]).catch(() => undefined);
-    await this.forget(record.sessionId);
+    await this.withRepoLock(record.repositoryPath, async () => {
+      await this.removeWorktree(record);
+      await git(record.repositoryPath, ['branch', '-D', record.branch]).catch(() => undefined);
+      await this.forget(record.sessionId);
+    });
   }
 
   async saveOutcome(record: ScaffoldRecord, outcome: ScaffoldOutcome): Promise<ScaffoldRecord> {

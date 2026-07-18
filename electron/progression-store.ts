@@ -55,19 +55,23 @@ export class ProgressionStore {
     }
   }
 
-  async assignProject(selection: Omit<ProjectSelection, 'projectId'> & { projectId?: string }): Promise<ProjectSelection> {
+  async assignProject(selection: Omit<ProjectSelection, 'projectId'> & { projectId?: string; secondWorkshop?: boolean }): Promise<ProjectSelection> {
     return this.enqueueMutation(async () => {
     const data = await this.readNow();
-    const existing = Object.values(data.projects).find((project) => project.repositoryPath === selection.path);
+    // A second workshop is a deliberately DISTINCT identity on the same
+    // repository: its own builder, scaffold, ledger, and levels.
+    const assignedTwins = data.lots.filter((lot) => lot.path === selection.path && lot.slot !== selection.slot).length;
+    const existing = selection.secondWorkshop ? undefined : Object.values(data.projects).find((project) => project.repositoryPath === selection.path);
     const projectId = existing?.projectId ?? selection.projectId ?? randomUUID();
+    const name = selection.secondWorkshop && assignedTwins > 0 ? `${selection.name} · ${assignedTwins + 1}` : selection.name;
     for (const lot of data.lots) {
       if (lot.projectId === projectId) Object.assign(lot, { projectId: null, path: null, name: null, isDemo: false });
     }
-    data.lots[selection.slot] = { ...selection, projectId };
+    data.lots[selection.slot] = { slot: selection.slot, path: selection.path, isDemo: selection.isDemo, name, projectId };
     data.projects[projectId] ??= {
       projectId,
       repositoryPath: selection.path,
-      repositoryName: selection.name,
+      repositoryName: name,
       isDemo: selection.isDemo,
       level: 0,
       completedSessions: 0,
@@ -84,11 +88,11 @@ export class ProgressionStore {
     };
     Object.assign(data.projects[projectId], {
       repositoryPath: selection.path,
-      repositoryName: selection.name,
+      repositoryName: name,
       isDemo: selection.isDemo,
     });
     await this.write(data);
-    return { ...selection, projectId };
+    return { slot: selection.slot, path: selection.path, isDemo: selection.isDemo, name, projectId };
     });
   }
 

@@ -137,6 +137,20 @@ describe('ProgressionStore', () => {
     expect((await store.read()).projects[project.projectId].level).toBe(1);
   });
 
+  it('assigns a second workshop on the same repository as a distinct identity', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'codeville-second-workshop-'));
+    const store = new ProgressionStore(directory);
+    const first = await store.assignProject({ path: '/projects/graphletter', name: 'graphletter', slot: 0, isDemo: false });
+    const second = await store.assignProject({ path: '/projects/graphletter', name: 'graphletter', slot: 1, isDemo: false, secondWorkshop: true });
+    const data = await store.read();
+    expect(second.projectId).not.toBe(first.projectId);
+    expect(data.lots[0]).toMatchObject({ projectId: first.projectId, name: 'graphletter' });
+    expect(data.lots[1]).toMatchObject({ projectId: second.projectId, name: 'graphletter · 2' });
+    expect(data.projects[second.projectId]).toMatchObject({ repositoryPath: '/projects/graphletter', repositoryName: 'graphletter · 2', level: 0 });
+    const moved = await store.assignProject({ path: '/projects/graphletter', name: 'graphletter', slot: 2, isDemo: false });
+    expect(moved.projectId).toBe(first.projectId);
+  });
+
   it('persists work orders per project and removes them individually', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'codeville-orders-'));
     const store = new ProgressionStore(directory);

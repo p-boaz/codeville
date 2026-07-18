@@ -124,6 +124,27 @@ describe('ScaffoldManager', () => {
     await access(orphans[0].scaffoldPath);
   });
 
+  it('supports two concurrent workshops on one repository: parallel creates, then both land in turn', async () => {
+    const repo = await makeRepo();
+    const manager = new ScaffoldManager(await mkdtemp(join(tmpdir(), 'codeville-scaffolds-')));
+    const [first, second] = await Promise.all([
+      manager.create(repo, 'project-a', 'session-a'),
+      manager.create(repo, 'project-b', 'session-b'),
+    ]);
+    expect(first.scaffoldPath).not.toBe(second.scaffoldPath);
+    await writeFile(join(first.scaffoldPath, 'feature-a.js'), 'module.exports = "a";\n');
+    await writeFile(join(second.scaffoldPath, 'feature-b.js'), 'module.exports = "b";\n');
+    await Promise.all([manager.checkpoint(first), manager.checkpoint(second)]);
+    await Promise.all([
+      manager.apply(first, 'Land feature A').then(() => manager.discard(first)),
+      manager.apply(second, 'Land feature B').then(() => manager.discard(second)),
+    ]);
+    await access(join(repo, 'feature-a.js'));
+    await access(join(repo, 'feature-b.js'));
+    expect(await git(repo, ['status', '--porcelain'])).toBe('');
+    expect(Number(await git(repo, ['rev-list', '--count', 'HEAD']))).toBe(3);
+  });
+
   it('refuses a repository with no commits with a plain-language error', async () => {
     const repo = await mkdtemp(join(tmpdir(), 'codeville-empty-'));
     await git(repo, ['-c', 'init.defaultBranch=main', 'init']);
