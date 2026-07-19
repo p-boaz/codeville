@@ -67,6 +67,24 @@ export function App() {
         }).catch(() => undefined);
       }
     });
+    // Pending views hold overlap/base-stale verdicts computed against the world at
+    // fetch time — a sibling landing or finishing invalidates them, so re-fetch.
+    const refreshOtherPendingViews = (exceptId: string) => {
+      setScaffoldViews((current) => {
+        for (const id of Object.keys(current)) {
+          if (id === exceptId) continue;
+          void window.codeville.getPendingScaffold(id).then((view) => {
+            setScaffoldViews((latest) => {
+              if (view) return { ...latest, [id]: view };
+              const next = { ...latest };
+              delete next[id];
+              return next;
+            });
+          }).catch(() => undefined);
+        }
+        return current;
+      });
+    };
     const unsubscribeEvent = window.codeville.onVillageEvent(({ projectId, event }) => {
       setSessions((current) => ({ ...current, [projectId]: reduceSession(current[projectId] ?? initialSessionState, event) }));
       setFeed((current) => {
@@ -81,10 +99,12 @@ export function App() {
         void window.codeville.getPendingScaffold(projectId).then((view) => {
           if (view) setScaffoldViews((current) => ({ ...current, [projectId]: view }));
         }).catch(() => undefined);
+        refreshOtherPendingViews(projectId);
       }
       if (event.type === 'session_applied' || event.type === 'session_kept' || event.type === 'session_discarded') {
         setScaffoldViews((current) => { const next = { ...current }; delete next[projectId]; return next; });
         void window.codeville.getProgression().then(setProgression);
+        refreshOtherPendingViews(projectId);
       }
     });
     const unsubscribeApproval = window.codeville.onApprovalRequest((request) => {
