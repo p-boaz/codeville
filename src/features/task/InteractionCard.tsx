@@ -22,6 +22,7 @@ export function InteractionCard({ request, submitting, error, onSubmit }: Intera
   return (
     <section className="interaction-card" aria-label="Codex input request">
       <span className="eyebrow">{request.title}</span>
+      {request.context && <p className="interaction-context">{request.context}</p>}
       {request.questions.map((question) => {
         const useText = !question.choices.length || selected[question.id] === '__other__';
         return (

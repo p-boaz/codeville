@@ -17,6 +17,8 @@ export interface SafeInputQuestion {
 export interface SafePendingInput {
   source: 'native' | 'terminal' | 'resumable';
   title: string;
+  /** Builder-supplied background so the question stands alone for a reader who has not seen the conversation. */
+  context?: string;
   questions: SafeInputQuestion[];
 }
 

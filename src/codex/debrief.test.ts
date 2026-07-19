@@ -21,6 +21,23 @@ describe('CODEVILLE_RESULT privacy boundary', () => {
     });
   });
 
+  it('carries sanitized context alongside a waiting question so it stands alone', () => {
+    const result = parseCodevilleResult('CODEVILLE_RESULT: {"status":"waiting_for_input","context":"The no_weak_arm NO leg lost 311 dollars over 17 settled bets and cannot clear the n=20 gate.","question":"Pause the no_weak_arm NO leg?","choices":["Pause it","Keep it live"]}');
+    expect(result).toMatchObject({
+      status: 'waiting_for_input',
+      pendingInput: {
+        context: 'The no_weak_arm NO leg lost 311 dollars over 17 settled bets and cannot clear the n=20 gate.',
+        questions: [{ question: 'Pause the no_weak_arm NO leg?', choices: ['Pause it', 'Keep it live'] }],
+      },
+    });
+  });
+
+  it('drops unsanitizable context but keeps the waiting question', () => {
+    const result = parseCodevilleResult('CODEVILLE_RESULT: {"status":"waiting_for_input","context":"See https://example.com","question":"Which channel should continue?"}');
+    expect(result?.status).toBe('waiting_for_input');
+    expect(result && 'pendingInput' in result ? result.pendingInput.context : 'present').toBeUndefined();
+  });
+
   it.each([
     'Tightened retry logic in src/kalshi/strategy.ts',
     'Renamed health.js and updated package.json',

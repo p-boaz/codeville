@@ -88,7 +88,7 @@ lines.on('line', (line) => {
       steerableTurns.set(turnId, { threadId, timer });
       return;
     }
-    if (text.includes('fixture:waiting')) return setTimeout(() => complete(message.params.threadId, turnId, 'CODEVILLE_RESULT: {"status":"waiting_for_input","question":"Which fixture channel should continue?","choices":["Stable","Preview"]}'), 20);
+    if (text.includes('fixture:waiting')) return setTimeout(() => complete(message.params.threadId, turnId, 'CODEVILLE_RESULT: {"status":"waiting_for_input","context":"The fixture pipeline publishes to one of two release channels and both are currently green.","question":"Which fixture channel should continue?","choices":["Stable","Preview"]}'), 20);
     if (text.includes('fixture:review')) return setTimeout(() => complete(message.params.threadId, turnId, 'Turn ended without a marker.'), 20);
     return setTimeout(() => complete(message.params.threadId, turnId), 30);
   }

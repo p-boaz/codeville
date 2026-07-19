@@ -4,7 +4,7 @@ const marker = 'CODEVILLE_RESULT:';
 const maxQuestionLength = 240;
 const maxChoiceLength = 80;
 
-export const debriefDeveloperInstructions = `Every final answer must end with exactly one line beginning ${marker} followed by one JSON object. Use {"status":"completed","landed":"A plain-language outcome under 96 characters.","followUp":"One next step under 96 characters, or No follow-up recommended.","followUpRecommended":true} only when the requested work is complete. Use {"status":"waiting_for_input","question":"One bounded question under 240 characters.","choices":["Optional choice under 80 characters"]} when you intentionally stop for user direction. Do not claim completion without a valid completed marker. Naming changed files is encouraged; do not include URLs, commands, code snippets, secrets, or markdown in any field.`;
+export const debriefDeveloperInstructions = `Every final answer must end with exactly one line beginning ${marker} followed by one JSON object. Use {"status":"completed","landed":"A plain-language outcome under 96 characters.","followUp":"One next step under 96 characters, or No follow-up recommended.","followUpRecommended":true} only when the requested work is complete. Use {"status":"waiting_for_input","context":"One or two sentences of background under 240 characters.","question":"One bounded question under 240 characters.","choices":["Optional choice under 80 characters"]} when you intentionally stop for user direction. The reader has NOT seen this conversation: every field must stand alone. Name the exact file, feature, or object you mean — never a bare referent like "the flag" or "the NO leg" without saying what it is. Do not claim completion without a valid completed marker. Naming changed files is encouraged; do not include URLs, commands, code snippets, secrets, or markdown in any field.`;
 
 export function parseCodevilleResult(text: string | null | undefined): CodevilleResult | null {
   if (!text) return null;
@@ -49,11 +49,14 @@ function parseWaiting(candidate: Record<string, unknown>): CodevilleResult | nul
   if (rawChoices.length > 6) return null;
   const choices = rawChoices.map((choice) => typeof choice === 'string' ? sanitizePromptText(choice, maxChoiceLength) : null);
   if (choices.some((choice) => !choice)) return null;
+  // Context is best-effort: an unsanitizable one is dropped, never fatal.
+  const context = typeof candidate.context === 'string' ? sanitizePromptText(candidate.context, maxQuestionLength) ?? undefined : undefined;
   return {
     status: 'waiting_for_input',
     pendingInput: {
       source: 'terminal',
       title: 'Builder needs direction',
+      ...(context ? { context } : {}),
       questions: [{ id: 'reply', header: 'Reply', question, isSecret: false, choices: choices as string[] }],
     },
   };

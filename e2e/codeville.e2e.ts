@@ -75,6 +75,7 @@ test('deterministic protocol: native input, stopped-turn continuation, review, r
     failOnRendererCrash(page);
     await page.getByRole('button', { name: /waiting/i }).click();
     await expect(page.getByText('Which fixture channel should continue?')).toBeVisible();
+    await expect(page.getByText('The fixture pipeline publishes to one of two release channels and both are currently green.')).toBeVisible();
     await page.getByLabel('Stable').click();
     await page.getByRole('button', { name: /send reply/i }).click();
     await expect(page.getByRole('heading', { name: 'Improvement complete' })).toBeVisible();
