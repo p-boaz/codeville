@@ -36,7 +36,8 @@ button:disabled { cursor: not-allowed; opacity: 0.42; }
 ::-webkit-scrollbar-track { background: transparent; }
 
 .app-shell {
-  min-height: 100%;
+  /* Fixed to the viewport: columns clamp and scroll internally; the page itself never grows. */
+  height: 100vh;
   display: flex;
   flex-direction: column;
   background:
@@ -175,6 +176,7 @@ button:disabled { cursor: not-allowed; opacity: 0.42; }
 .task-panel {
   position: relative;
   z-index: 2;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -347,7 +349,7 @@ button:disabled { cursor: not-allowed; opacity: 0.42; }
 .overlap-warning strong { color: #ef9a83; }
 
 .skills-section { display: flex; flex-direction: column; gap: 7px; }
-.skill-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.skill-chips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 150px; overflow-y: auto; padding-right: 4px; }
 .skill-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 99px; background: var(--forest-deep); color: var(--cream-muted); font-size: 10px; font-weight: 600; cursor: pointer; }
 .skill-chip:hover { border-color: var(--gold); color: var(--cream); }
 .skill-chip.equipped { border-color: var(--gold); background: rgba(232, 184, 91, 0.16); color: var(--gold-bright); }
