@@ -172,6 +172,8 @@ export interface StartSessionInput {
   projectPath: string;
   projectName: string;
   task: string;
+  /** Skills to equip for this session, referenced natively in the turn input. */
+  skills?: Array<Pick<SkillOption, 'name' | 'path'>>;
 }
 
 export interface StartSessionResult {
@@ -231,6 +233,14 @@ export interface SessionDiffView {
   overlapPaths: string[];
 }
 
+/** One equippable skill: overarching (user/system) or repo-specific, from Codex's skills/list. */
+export interface SkillOption {
+  name: string;
+  description: string;
+  scope: 'user' | 'repo' | 'system' | 'admin';
+  path: string;
+}
+
 export interface BatchLaunchProject {
   projectId: string;
   projectPath: string;
@@ -243,6 +253,7 @@ export interface CodevilleBridge {
   selectProject(slot: VillageLot['slot']): Promise<ProjectSelection | null>;
   prepareDemoVillage(): Promise<ProjectSelection[]>;
   startSession(input: StartSessionInput): Promise<StartSessionResult>;
+  listSkills(projectPath: string): Promise<SkillOption[]>;
   interruptSession(projectId: string): Promise<void>;
   steerSession(projectId: string, message: string): Promise<void>;
   openScaffold(projectId: string): Promise<void>;

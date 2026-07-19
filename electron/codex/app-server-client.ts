@@ -4,6 +4,7 @@ import { createInterface, type Interface as ReadLineInterface } from 'node:readl
 import type { ServerNotification } from './generated/ServerNotification';
 import type { ServerRequest } from './generated/ServerRequest';
 import type { ThreadStartResponse } from './generated/v2/ThreadStartResponse';
+import type { SkillsListResponse } from './generated/v2/SkillsListResponse';
 import type { ThreadResumeResponse } from './generated/v2/ThreadResumeResponse';
 import type { TurnStartResponse } from './generated/v2/TurnStartResponse';
 import { debriefDeveloperInstructions } from '../../src/codex/debrief';
@@ -90,12 +91,21 @@ export class AppServerClient {
     return this.request<ThreadStartResponse>('thread/start', buildThreadStartParams(cwd, model));
   }
 
-  async startTurn(threadId: string, task: string): Promise<TurnStartResponse> {
+  async startTurn(threadId: string, task: string, skills: { name: string; path: string }[] = []): Promise<TurnStartResponse> {
     this.assertInitialized();
     return this.request<TurnStartResponse>('turn/start', {
       threadId,
-      input: [{ type: 'text', text: task, text_elements: [] }],
+      input: [
+        { type: 'text', text: task, text_elements: [] },
+        ...skills.map((skill) => ({ type: 'skill' as const, name: skill.name, path: skill.path })),
+      ],
     });
+  }
+
+  /** Skills visible for a working directory: repo-scoped from the cwd plus user/system scopes. */
+  async listSkills(cwd: string): Promise<SkillsListResponse> {
+    this.assertInitialized();
+    return this.request<SkillsListResponse>('skills/list', { cwds: [cwd] });
   }
 
   async resumeThread(threadId: string, cwd: string, model: string): Promise<ThreadResumeResponse> {

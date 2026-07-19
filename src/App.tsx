@@ -5,7 +5,7 @@ import { BatchLaunchDialog } from './features/task/BatchLaunchDialog';
 import { TaskPanel } from './features/task/TaskPanel';
 import { ProjectRail } from './features/village/ProjectRail';
 import { VillageCanvas } from './game/VillageCanvas';
-import type { ApprovalRequestView, BatchLaunchProject, ConnectionProof, EnvironmentStatus, InputResponse, PendingInputView, PendingScaffoldView, ProgressionData, ProjectProgress, ProjectSelection, SessionDiffView, VillageLot } from './shared/village-events';
+import type { ApprovalRequestView, BatchLaunchProject, ConnectionProof, EnvironmentStatus, InputResponse, PendingInputView, PendingScaffoldView, ProgressionData, ProjectProgress, ProjectSelection, SessionDiffView, SkillOption, VillageLot } from './shared/village-events';
 import { beginSession, initialSessionState, projectProgress, reduceSession, resetSession, type SessionState } from './state/session-machine';
 import { batchLaunchProjects, updateProjectTask } from './state/project-tasks';
 import { chimeForEvent, playChime } from './game/chimes';
@@ -42,6 +42,9 @@ export function App() {
   const [wallMode, setWallMode] = useState(false);
   const [muted, setMuted] = useState(() => localStorage.getItem(mutedStorageKey) === '1');
   const mutedRef = useRef(muted);
+  const [skillOptions, setSkillOptions] = useState<Record<string, SkillOption[]>>({});
+  const [equippedSkills, setEquippedSkills] = useState<Record<string, string[]>>({});
+  const skillsFetchedRef = useRef(new Set<string>());
   const [error, setError] = useState<string | null>(null);
   const [projectErrors, setProjectErrors] = useState<Record<string, string>>({});
 
@@ -159,6 +162,25 @@ export function App() {
     if (!selectedProjectId) return;
     void window.codeville.getConnectionProof(selectedProjectId).then(setProof).catch(() => setProof(null));
   }, [selectedProjectId, session.phase, progression]);
+
+  useEffect(() => {
+    if (!selectedProject || !environment?.codexAvailable) return;
+    const { projectId, path } = selectedProject;
+    if (skillsFetchedRef.current.has(projectId)) return;
+    skillsFetchedRef.current.add(projectId);
+    void window.codeville.listSkills(path)
+      .then((options) => setSkillOptions((current) => ({ ...current, [projectId]: options })))
+      .catch(() => undefined);
+  }, [selectedProject, environment]);
+
+  function toggleSkill(name: string) {
+    if (!selectedProjectId) return;
+    const projectId = selectedProjectId;
+    setEquippedSkills((current) => {
+      const equipped = current[projectId] ?? [];
+      return { ...current, [projectId]: equipped.includes(name) ? equipped.filter((entry) => entry !== name) : [...equipped, name] };
+    });
+  }
 
   function selectLot(slot: VillageLot['slot'], projectId: string | null) {
     setSelectedSlot(slot);
@@ -288,8 +310,11 @@ export function App() {
     if (!projectTask.trim()) return;
     setProjectErrors((current) => { const next = { ...current }; delete next[project.projectId]; return next; });
     setSessions((current) => ({ ...current, [project.projectId]: beginSession(current[project.projectId] ?? initialSessionState) }));
+    const equipped = (equippedSkills[project.projectId] ?? [])
+      .map((name) => (skillOptions[project.projectId] ?? []).find((option) => option.name === name))
+      .flatMap((option) => option ? [{ name: option.name, path: option.path }] : []);
     try {
-      await window.codeville.startSession({ projectId: project.projectId, projectPath: project.path, projectName: project.name, task: projectTask.trim() });
+      await window.codeville.startSession({ projectId: project.projectId, projectPath: project.path, projectName: project.name, task: projectTask.trim(), skills: equipped });
     } catch (cause) {
       setSessions((current) => ({ ...current, [project.projectId]: reduceSession(current[project.projectId] ?? initialSessionState, { type: 'session_failed', at: new Date().toISOString(), recoverable: true }) }));
       setProjectErrors((current) => ({ ...current, [project.projectId]: 'Codex could not start or continue this project. Review its repository and try again.' }));
@@ -422,7 +447,7 @@ export function App() {
           <div className="stage-heading"><span className="eyebrow">Willow Ward · Five live lots</span><h1>{allDemo ? 'The whole village is awake' : 'Your agents, building side by side'}</h1><p>Every movement comes from a real, project-scoped Codex event.</p></div>
           {!progression.lots.some((lot) => lot.projectId) && <div className="empty-village-cta"><strong>Build a five-project demo village</strong><span>Five isolated repositories. Five real Codex builders. One living map.</span><button onClick={useDemoVillage}>Create demo village <span>→</span></button></div>}
         </div>
-        {!wallMode && <TaskPanel environment={environment} project={selectedProject} task={task} session={session} progress={progress} sessionActive={sessionActive} pendingInput={pendingInput} inputSubmitting={inputSubmitting} inputError={inputError} pendingScaffold={selectedProjectId ? scaffoldViews[selectedProjectId] ?? null : null} sessionDiff={sessionDiff} landingBusy={landingBusy} landingError={landingError} onLoadDiff={loadDiff} onCloseDiff={() => setSessionDiff(null)} onApply={() => landSession('apply')} onKeep={() => landSession('keep')} onDiscard={() => landSession('discard')} onAddOrder={addOrder} onDeleteOrder={deleteOrder} onStartNextOrder={startNextOrder} onSteer={steerSession} onOpenScaffold={openScaffold} onRefresh={refreshSession} proof={proof} handoffNotice={handoffNotice} error={(selectedProjectId && projectErrors[selectedProjectId]) || error} onTaskChange={(value) => selectedProjectId && setTasks((current) => updateProjectTask(current, selectedProjectId, value))} onChooseProject={chooseProject} onUseDemoVillage={useDemoVillage} onStart={startSession} onInterrupt={interruptSession} onSubmitInput={submitInput} onHandoff={handoffToGhostty} onReclaim={reclaimFromGhostty} onNewTask={newTask} onResetVillage={resetVillage} />}
+        {!wallMode && <TaskPanel environment={environment} project={selectedProject} task={task} session={session} progress={progress} sessionActive={sessionActive} pendingInput={pendingInput} inputSubmitting={inputSubmitting} inputError={inputError} pendingScaffold={selectedProjectId ? scaffoldViews[selectedProjectId] ?? null : null} sessionDiff={sessionDiff} landingBusy={landingBusy} landingError={landingError} onLoadDiff={loadDiff} onCloseDiff={() => setSessionDiff(null)} onApply={() => landSession('apply')} onKeep={() => landSession('keep')} onDiscard={() => landSession('discard')} onAddOrder={addOrder} onDeleteOrder={deleteOrder} onStartNextOrder={startNextOrder} onSteer={steerSession} onOpenScaffold={openScaffold} onRefresh={refreshSession} skillOptions={selectedProjectId ? skillOptions[selectedProjectId] ?? [] : []} equippedSkills={selectedProjectId ? equippedSkills[selectedProjectId] ?? [] : []} onToggleSkill={toggleSkill} proof={proof} handoffNotice={handoffNotice} error={(selectedProjectId && projectErrors[selectedProjectId]) || error} onTaskChange={(value) => selectedProjectId && setTasks((current) => updateProjectTask(current, selectedProjectId, value))} onChooseProject={chooseProject} onUseDemoVillage={useDemoVillage} onStart={startSession} onInterrupt={interruptSession} onSubmitInput={submitInput} onHandoff={handoffToGhostty} onReclaim={reclaimFromGhostty} onNewTask={newTask} onResetVillage={resetVillage} />}
       </section>
       {approval && <ApprovalDialog request={approval} onDecision={respondToApproval} />}
       {pendingBatch && <BatchLaunchDialog projects={pendingBatch} onCancel={() => setPendingBatch(null)} onConfirm={confirmBatch} />}

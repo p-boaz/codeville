@@ -32,6 +32,9 @@ describe('TaskPanel', () => {
         onSteer={vi.fn()}
         onOpenScaffold={vi.fn()}
         onRefresh={vi.fn()}
+        skillOptions={[]}
+        equippedSkills={[]}
+        onToggleSkill={vi.fn()}
         proof={null}
         handoffNotice={null}
         error={null}
@@ -52,13 +55,45 @@ describe('TaskPanel', () => {
     expect(screen.getByText(/private by construction/i)).toBeVisible();
   });
 
+  it('offers repo-specific skills before overarching ones and reports equipped state', () => {
+    const onToggleSkill = vi.fn();
+    render(
+      <TaskPanel
+        environment={{ codexAvailable: true, codexVersion: 'codex-cli 0.144.4', model: 'gpt-5.6-sol', platform: 'darwin' }}
+        project={{ projectId: 'project-1', path: '/safe/acorn', name: 'Acorn', slot: 0, isDemo: false }}
+        task="" session={initialSessionState} sessionActive={false} progress={null}
+        pendingInput={null} inputSubmitting={false} inputError={null}
+        pendingScaffold={null} sessionDiff={null} landingBusy={false} landingError={null}
+        onLoadDiff={vi.fn()} onCloseDiff={vi.fn()} onApply={vi.fn()} onKeep={vi.fn()} onDiscard={vi.fn()}
+        onAddOrder={vi.fn()} onDeleteOrder={vi.fn()} onStartNextOrder={vi.fn()}
+        onSteer={vi.fn()} onOpenScaffold={vi.fn()} onRefresh={vi.fn()}
+        skillOptions={[
+          { name: 'house-style', description: 'Overarching skill', scope: 'user', path: '/skills/house-style' },
+          { name: 'repo-helper', description: 'Repo skill', scope: 'repo', path: '/repo/.codex/skills/helper' },
+        ]}
+        equippedSkills={['repo-helper']}
+        onToggleSkill={onToggleSkill}
+        proof={null} handoffNotice={null} error={null}
+        onTaskChange={vi.fn()} onChooseProject={vi.fn()} onUseDemoVillage={vi.fn()} onStart={vi.fn()} onInterrupt={vi.fn()}
+        onSubmitInput={vi.fn()} onHandoff={vi.fn()} onReclaim={vi.fn()} onNewTask={vi.fn()} onResetVillage={vi.fn()}
+      />,
+    );
+    const chips = screen.getAllByRole('button', { name: /repo-helper|house-style/ });
+    expect(chips[0]).toHaveTextContent('repo-helper');
+    expect(chips[0]).toHaveAttribute('aria-pressed', 'true');
+    expect(chips[1]).toHaveTextContent('house-style');
+    expect(chips[1]).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(chips[1]);
+    expect(onToggleSkill).toHaveBeenCalledWith('house-style');
+  });
+
   it('shows metadata proof and disables Ghostty handoff while a turn is active', () => {
     render(<TaskPanel
       environment={{ codexAvailable: true, codexVersion: 'codex-cli 0.144.4', model: 'gpt-5.6-sol', platform: 'darwin' }}
       project={{ projectId: 'project-1', path: '/safe/acorn', name: 'Acorn', slot: 0, isDemo: true }} task="Fix it"
       session={{ ...initialSessionState, phase: 'editing' }} sessionActive
       progress={{ projectId: 'project-1', repositoryPath: '/safe/acorn', repositoryName: 'Acorn', isDemo: true, level: 0, completedSessions: 0, lastCompletedAt: null, lastDebrief: null, lastThreadId: 'thread-1', conversationStatus: 'idle', pendingInput: null, handoffAt: null, safeEventCount: 4, lastTurnStartedAt: null, history: [], queue: [] }}
-      pendingInput={null} inputSubmitting={false} inputError={null} pendingScaffold={null} sessionDiff={null} landingBusy={false} landingError={null} onLoadDiff={vi.fn()} onCloseDiff={vi.fn()} onApply={vi.fn()} onKeep={vi.fn()} onDiscard={vi.fn()} onAddOrder={vi.fn()} onDeleteOrder={vi.fn()} onStartNextOrder={vi.fn()} onSteer={vi.fn()} onOpenScaffold={vi.fn()} onRefresh={vi.fn()} handoffNotice={null} error={null}
+      pendingInput={null} inputSubmitting={false} inputError={null} pendingScaffold={null} sessionDiff={null} landingBusy={false} landingError={null} onLoadDiff={vi.fn()} onCloseDiff={vi.fn()} onApply={vi.fn()} onKeep={vi.fn()} onDiscard={vi.fn()} onAddOrder={vi.fn()} onDeleteOrder={vi.fn()} onStartNextOrder={vi.fn()} onSteer={vi.fn()} onOpenScaffold={vi.fn()} onRefresh={vi.fn()} skillOptions={[]} equippedSkills={[]} onToggleSkill={vi.fn()} handoffNotice={null} error={null}
       proof={{ connected: true, appServerPid: 123, codexVersion: 'codex-cli 0.144.4', model: 'gpt-5.6-sol', repositoryName: 'Acorn', repositoryPath: '/safe/acorn', threadId: 'thread-1', activeTurnId: 'turn-1', safeEventCount: 4, connectedAt: null, turnStartedAt: null }}
       onTaskChange={vi.fn()} onChooseProject={vi.fn()} onUseDemoVillage={vi.fn()} onStart={vi.fn()} onInterrupt={vi.fn()} onSubmitInput={vi.fn()} onHandoff={vi.fn()} onReclaim={vi.fn()} onNewTask={vi.fn()} onResetVillage={vi.fn()}
     />);

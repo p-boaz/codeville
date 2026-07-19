@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import type { ConnectionProof, InputResponse, PendingInputView, PendingScaffoldView, ProjectProgress, EnvironmentStatus, ProjectSelection, SessionDiffView } from '../../shared/village-events';
+import type { ConnectionProof, InputResponse, PendingInputView, PendingScaffoldView, ProjectProgress, EnvironmentStatus, ProjectSelection, SessionDiffView, SkillOption } from '../../shared/village-events';
 import type { SessionState } from '../../state/session-machine';
 import { ConnectionProofPanel } from './ConnectionProofPanel';
 import { InspectionCard } from './InspectionCard';
@@ -31,6 +31,9 @@ interface TaskPanelProps {
   onSteer(message: string): Promise<void>;
   onOpenScaffold(): void;
   onRefresh(): void;
+  skillOptions: SkillOption[];
+  equippedSkills: string[];
+  onToggleSkill(name: string): void;
   proof: ConnectionProof | null;
   handoffNotice: string | null;
   error: string | null;
@@ -89,6 +92,9 @@ export function TaskPanel({
   onSteer,
   onOpenScaffold,
   onRefresh,
+  skillOptions,
+  equippedSkills,
+  onToggleSkill,
   proof,
   handoffNotice,
   error,
@@ -137,15 +143,20 @@ export function TaskPanel({
       )}
 
       {!sessionActive && !pendingScaffold && !['completed', 'waiting', 'needs_review', 'external', 'reviewing'].includes(session.phase) && (
-        <label className="task-field">
-          <span>What should the builder improve?</span>
-          <textarea
-            rows={5}
-            value={task}
-            onChange={(event) => onTaskChange(event.target.value)}
-            placeholder="Describe one concrete coding task"
-          />
-        </label>
+        <>
+          <label className="task-field">
+            <span>What should the builder improve?</span>
+            <textarea
+              rows={5}
+              value={task}
+              onChange={(event) => onTaskChange(event.target.value)}
+              placeholder="Describe one concrete coding task"
+            />
+          </label>
+          {project && skillOptions.length > 0 && (
+            <SkillsSection options={skillOptions} equipped={equippedSkills} onToggle={onToggleSkill} />
+          )}
+        </>
       )}
 
       {sessionActive && session.phase !== 'approval' && session.phase !== 'input' && <SteerSection onSteer={onSteer} />}
@@ -277,6 +288,39 @@ function formatTime(value: string): string {
 
 function formatDay(value: string): string {
   return new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
+}
+
+const scopeOrder: Record<SkillOption['scope'], number> = { repo: 0, user: 1, system: 2, admin: 3 };
+
+function SkillsSection({ options, equipped, onToggle }: { options: SkillOption[]; equipped: string[]; onToggle(name: string): void }) {
+  const ordered = [...options].sort((left, right) =>
+    (scopeOrder[left.scope] - scopeOrder[right.scope]) || left.name.localeCompare(right.name));
+  return (
+    <div className="skills-section" aria-label="Equip skills">
+      <div className="section-heading">
+        <span>Equip skills</span>
+        <small>{equipped.length ? `${equipped.length} equipped` : 'Optional'}</small>
+      </div>
+      <div className="skill-chips">
+        {ordered.map((skill) => {
+          const isEquipped = equipped.includes(skill.name);
+          return (
+            <button
+              key={`${skill.scope}-${skill.name}`}
+              className={`skill-chip${isEquipped ? ' equipped' : ''}`}
+              title={skill.description}
+              aria-pressed={isEquipped}
+              onClick={() => onToggle(skill.name)}
+            >
+              {skill.scope === 'repo' && <span className="skill-scope">repo</span>}
+              {skill.name}
+            </button>
+          );
+        })}
+      </div>
+      <small>Repo-specific skills come from this repository; the rest are your overarching set. Equipped skills ride along with the task.</small>
+    </div>
+  );
 }
 
 function SteerSection({ onSteer }: { onSteer(message: string): Promise<void> }) {

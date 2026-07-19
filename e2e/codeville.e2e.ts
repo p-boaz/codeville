@@ -43,6 +43,13 @@ test('deterministic protocol: native input, stopped-turn continuation, review, r
     for (const [slot, task, phase] of [[2, 'fixture:complete sibling', 'completed'], [3, 'fixture:review', 'needs_review'], [1, 'fixture:waiting', 'waiting'], [0, 'fixture:native', 'input']] as const) {
       await page.getByRole('button', { name: new RegExp(`0${slot + 1}.*${basename(repositories[slot])}`, 'i') }).click();
       await page.getByPlaceholder('Describe one concrete coding task').fill(task);
+      if (slot === 2) {
+        // Skills prep: repo-specific and overarching skills are equippable; disabled ones never appear.
+        await expect(page.getByRole('button', { name: /house-style/ })).toBeVisible();
+        await expect(page.getByRole('button', { name: /disabled-skill/ })).toHaveCount(0);
+        await page.getByRole('button', { name: /repo-helper/ }).click();
+        await expect(page.getByRole('button', { name: /repo-helper/ })).toHaveAttribute('aria-pressed', 'true');
+      }
       await page.getByRole('button', { name: /start building/i }).click();
       await expect(page.locator(`.project-tab.phase-${phase}`)).toHaveCount(1);
     }
@@ -90,6 +97,9 @@ test('deterministic protocol: native input, stopped-turn continuation, review, r
     }
     expect(protocol.some((entry) => entry.method === 'thread/resume' && entry.params?.threadId === waitingThread && entry.params?.sandbox === 'workspace-write' && entry.params?.approvalPolicy === 'on-request')).toBe(true);
     expect(protocol.some((entry) => entry.method === 'turn/start' && entry.params?.threadId === waitingThread && entry.params?.input?.[0]?.text === 'Stable')).toBe(true);
+    const siblingTurn = protocol.find((entry) => entry.method === 'turn/start' && entry.params?.input?.[0]?.text === 'fixture:complete sibling');
+    expect(siblingTurn?.params.input.some((item: { type: string; name?: string }) => item.type === 'skill' && item.name === 'repo-helper')).toBe(true);
+    expect(siblingTurn?.params.input.some((item: { type: string; name?: string }) => item.name === 'house-style')).toBe(false);
     const persisted = await readFile(join(userData, 'progression.json'), 'utf8');
     expect(persisted).not.toContain('masked-fixture-value');
     await expect.poll(async () => readFile(ghosttyLog, 'utf8').then((value) => value.includes(waitingThread)).catch(() => false)).toBe(true);

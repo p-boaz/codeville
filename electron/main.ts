@@ -424,7 +424,8 @@ function registerIpc(): void {
     const runtime: ProjectRuntime = { projectId: input.projectId, threadId: thread.thread.id, turnId: null, lastAgentMessage: null, safeEventCount: 0, turnStartedAt: startedAt, sessionId: scaffold.sessionId };
     runtimes.add(runtime);
     try {
-      const turn = await appServer.startTurn(runtime.threadId, input.task.trim());
+      const equipped = (input.skills ?? []).slice(0, 12).filter((skill) => typeof skill.name === 'string' && typeof skill.path === 'string');
+      const turn = await appServer.startTurn(runtime.threadId, input.task.trim(), equipped);
       runtime.turnId = turn.turn.id;
       await store.recordThread(runtime.projectId, runtime.threadId, startedAt);
       return { threadId: runtime.threadId, turnId: turn.turn.id, model: thread.model };
@@ -432,6 +433,25 @@ function registerIpc(): void {
       cleanupRuntime(runtime);
       await scaffolds.discard(scaffold);
       throw error;
+    }
+  });
+  ipcMain.handle('skills:list', async (_event, projectPath: string) => {
+    // Advisory surface: any failure (no Codex, cold client, bad path) yields an
+    // empty list and hides the section — never an error in the prep flow.
+    try {
+      await access(projectPath);
+      const appServer = await ensureClient();
+      const response = await appServer.listSkills(projectPath);
+      return response.data.flatMap((entry) => entry.skills)
+        .filter((skill) => skill.enabled)
+        .map((skill) => ({
+          name: skill.name,
+          description: (skill.shortDescription ?? skill.description ?? '').slice(0, 160),
+          scope: skill.scope,
+          path: skill.path,
+        }));
+    } catch {
+      return [];
     }
   });
   ipcMain.handle('session:interrupt', async (_event, projectId: string) => {

@@ -33,6 +33,15 @@ lines.on('line', (line) => {
   }
   if (message.method === 'thread/resume') return send({ id: message.id, result: { thread: thread(message.params.threadId, message.params.cwd), model: message.params.model, modelProvider: 'fixture', serviceTier: null, cwd: message.params.cwd, instructionSources: [], approvalPolicy: message.params.approvalPolicy, approvalsReviewer: 'user', sandbox: { type: 'workspaceWrite' }, reasoningEffort: null } });
   if (message.method === 'thread/unsubscribe') return send({ id: message.id, result: { status: 'unsubscribed' } });
+  if (message.method === 'skills/list') {
+    const cwd = message.params?.cwds?.[0] ?? '/fixture';
+    return send({ id: message.id, result: { data: [{ cwd, skills: [
+      { name: 'repo-helper', description: 'Repo-specific fixture skill', path: `${cwd}/.codex/skills/repo-helper/SKILL.md`, scope: 'repo', enabled: true },
+      { name: 'house-style', description: 'Overarching fixture skill', path: '/fixture/skills/house-style/SKILL.md', scope: 'user', enabled: true },
+      { name: 'disabled-skill', description: 'Should be hidden', path: '/fixture/skills/disabled/SKILL.md', scope: 'user', enabled: false },
+    ], errors: [] }] } });
+  }
+
   if (message.method === 'turn/interrupt') return send({ id: message.id, result: {} });
   if (message.method === 'turn/start') {
     const turnId = `019-fixture-turn-${++turnNumber}`;

@@ -13,6 +13,7 @@ const bridge: CodevilleBridge = {
   selectProject: (slot) => ipcRenderer.invoke('project:select', slot),
   prepareDemoVillage: () => ipcRenderer.invoke('project:demo-village'),
   startSession: (input) => ipcRenderer.invoke('session:start', input),
+  listSkills: (projectPath) => ipcRenderer.invoke('skills:list', projectPath),
   interruptSession: (projectId) => ipcRenderer.invoke('session:interrupt', projectId),
   steerSession: (projectId, message) => ipcRenderer.invoke('session:steer', projectId, message),
   openScaffold: (projectId) => ipcRenderer.invoke('scaffold:open', projectId),
