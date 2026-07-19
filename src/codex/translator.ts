@@ -50,12 +50,15 @@ function translateItemStarted(item: ThreadItem, at: string): VillageEvent[] {
     case 'reasoning':
       return [{ type: 'planning', at }];
     case 'fileChange':
-      return [{ type: 'editing', at, quantity: item.changes.length }];
+      return [{ type: 'editing', at, quantity: item.changes.length, detail: describeItems(item.changes.map((change) => baseName(change.path))) }];
     case 'commandExecution': {
       if (item.commandActions.length > 0 && item.commandActions.every((action) => action.type !== 'unknown')) {
-        return [{ type: 'reading', at, quantity: item.commandActions.length }];
+        const named = item.commandActions
+          .map((action) => (action.type === 'read' ? action.name : action.type === 'search' && action.query ? `"${action.query}"` : null))
+          .filter((name): name is string => Boolean(name));
+        return [{ type: 'reading', at, quantity: item.commandActions.length, detail: describeItems(named) }];
       }
-      return [{ type: 'running_command', at, category: categorizeCommand(item.command) }];
+      return [{ type: 'running_command', at, category: categorizeCommand(item.command), command: truncate(item.command, 80) }];
     }
     default:
       return [];
@@ -71,6 +74,21 @@ function translateItemCompleted(item: ThreadItem, at: string): VillageEvent[] {
       ? { type: 'tests_passed', at }
       : { type: 'tests_failed', at },
   ];
+}
+
+function baseName(path: string): string {
+  return path.split(/[\\/]/).filter(Boolean).at(-1) ?? path;
+}
+
+function truncate(value: string, max: number): string {
+  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+}
+
+// Desk-feed detail line: up to three named items, then a remainder count.
+function describeItems(names: string[]): string | undefined {
+  if (names.length === 0) return undefined;
+  const shown = names.slice(0, 3).join(' · ');
+  return names.length > 3 ? `${shown} +${names.length - 3}` : shown;
 }
 
 export function categorizeCommand(command: string): CommandCategory {

@@ -38,7 +38,7 @@ describe('TaskPanel', () => {
         proof={null}
         handoffNotice={null}
         error={null}
-        onTaskChange={vi.fn()}
+        feed={[]} onTaskChange={vi.fn()}
         onChooseProject={vi.fn()}
         onEmptyLot={vi.fn()}
         hasDemoLots={false}
@@ -76,7 +76,7 @@ describe('TaskPanel', () => {
         equippedSkills={['repo-helper']}
         onToggleSkill={onToggleSkill}
         proof={null} handoffNotice={null} error={null}
-        onTaskChange={vi.fn()} onChooseProject={vi.fn()} onEmptyLot={vi.fn()} hasDemoLots={false} onUseDemoVillage={vi.fn()} onStart={vi.fn()} onInterrupt={vi.fn()}
+        feed={[]} onTaskChange={vi.fn()} onChooseProject={vi.fn()} onEmptyLot={vi.fn()} hasDemoLots={false} onUseDemoVillage={vi.fn()} onStart={vi.fn()} onInterrupt={vi.fn()}
         onSubmitInput={vi.fn()} onHandoff={vi.fn()} onReclaim={vi.fn()} onNewTask={vi.fn()} onResetVillage={vi.fn()}
       />,
     );
@@ -103,6 +103,10 @@ describe('TaskPanel', () => {
         onSteer={vi.fn()} onOpenScaffold={vi.fn()} onRefresh={vi.fn()}
         skillOptions={[]} equippedSkills={[]} onToggleSkill={vi.fn()}
         proof={null} handoffNotice={null} error={null}
+        feed={[
+          { id: 'f1', projectId: 'project-2', name: 'graphletter', taskTag: 'qa review', label: 'Editing App.tsx · styles.css', tone: 'active', at: '2026-07-18T01:00:00.000Z' },
+          { id: 'f2', projectId: 'project-1', name: 'kalshi-mlb', taskTag: 'strategy review', label: 'Running pnpm vitest run', tone: 'active', at: '2026-07-18T01:00:05.000Z' },
+        ]}
         onTaskChange={vi.fn()} onChooseProject={vi.fn()} onEmptyLot={onEmptyLot} hasDemoLots={false} onUseDemoVillage={vi.fn()} onStart={vi.fn()} onInterrupt={vi.fn()}
         onSubmitInput={vi.fn()} onHandoff={vi.fn()} onReclaim={vi.fn()} onNewTask={vi.fn()} onResetVillage={vi.fn()}
       />,
@@ -112,6 +116,13 @@ describe('TaskPanel', () => {
     expect(onEmptyLot).toHaveBeenCalledOnce();
     expect(screen.getByRole('button', { name: 'Reset village…' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Reset demo village' })).toBeNull();
+
+    // The village feed shows every builder newest-first with its task tag.
+    const rows = screen.getAllByRole('listitem').filter((row) => row.textContent?.includes('·'));
+    expect(rows[0]).toHaveTextContent('kalshi-mlb · strategy review');
+    expect(rows[0]).toHaveTextContent('Running pnpm vitest run');
+    expect(rows[1]).toHaveTextContent('graphletter · qa review');
+    expect(rows[1]).toHaveTextContent('Editing App.tsx · styles.css');
   });
 
   it('shows metadata proof and disables Ghostty handoff while a turn is active', () => {
@@ -122,7 +133,7 @@ describe('TaskPanel', () => {
       progress={{ projectId: 'project-1', repositoryPath: '/safe/acorn', repositoryName: 'Acorn', isDemo: true, level: 0, completedSessions: 0, lastCompletedAt: null, lastDebrief: null, lastThreadId: 'thread-1', conversationStatus: 'idle', pendingInput: null, handoffAt: null, safeEventCount: 4, lastTurnStartedAt: null, history: [], queue: [] }}
       pendingInput={null} inputSubmitting={false} inputError={null} pendingScaffold={null} sessionDiff={null} landingBusy={false} landingError={null} onLoadDiff={vi.fn()} onCloseDiff={vi.fn()} onApply={vi.fn()} onKeep={vi.fn()} onDiscard={vi.fn()} onAddOrder={vi.fn()} onDeleteOrder={vi.fn()} onStartNextOrder={vi.fn()} onSteer={vi.fn()} onOpenScaffold={vi.fn()} onRefresh={vi.fn()} skillOptions={[]} equippedSkills={[]} onToggleSkill={vi.fn()} handoffNotice={null} error={null}
       proof={{ connected: true, appServerPid: 123, codexVersion: 'codex-cli 0.144.4', model: 'gpt-5.6-sol', repositoryName: 'Acorn', repositoryPath: '/safe/acorn', threadId: 'thread-1', activeTurnId: 'turn-1', safeEventCount: 4, connectedAt: null, turnStartedAt: null }}
-      onTaskChange={vi.fn()} onChooseProject={vi.fn()} onEmptyLot={vi.fn()} hasDemoLots onUseDemoVillage={vi.fn()} onStart={vi.fn()} onInterrupt={vi.fn()} onSubmitInput={vi.fn()} onHandoff={vi.fn()} onReclaim={vi.fn()} onNewTask={vi.fn()} onResetVillage={vi.fn()}
+      feed={[]} onTaskChange={vi.fn()} onChooseProject={vi.fn()} onEmptyLot={vi.fn()} hasDemoLots onUseDemoVillage={vi.fn()} onStart={vi.fn()} onInterrupt={vi.fn()} onSubmitInput={vi.fn()} onHandoff={vi.fn()} onReclaim={vi.fn()} onNewTask={vi.fn()} onResetVillage={vi.fn()}
     />);
     expect(screen.getByText('Codex connection proof')).toBeVisible();
     expect(screen.getByRole('button', { name: /continue in ghostty/i })).toBeDisabled();

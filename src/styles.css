@@ -211,8 +211,12 @@ button:disabled { cursor: not-allowed; opacity: 0.42; }
 .activity-section { display: flex; flex-direction: column; gap: 12px; }
 .section-heading { display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 700; }
 .section-heading small { color: var(--cream-muted); font-size: 9.5px; font-weight: 500; }
-.activity-list { display: flex; flex-direction: column; gap: 0; margin: 0; padding: 0; list-style: none; }
-.activity-list li { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; min-height: 35px; color: var(--cream-muted); font-size: 11px; }
+.activity-list { display: flex; flex-direction: column; gap: 0; margin: 0; padding: 0; list-style: none; max-height: 320px; overflow-y: auto; }
+.activity-list li { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; min-height: 35px; padding: 3px 0; color: var(--cream-muted); font-size: 11px; }
+.feed-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.feed-body > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-source { color: rgba(255,216,121,.55); font-size: 9px; font-weight: 700; letter-spacing: .02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.activity-list li.feed-selected .feed-source { color: var(--gold-bright); }
 .activity-list li.active { color: var(--cream); }
 .activity-list li.success { color: #a4dfaa; }
 .activity-list li.danger { color: #ee9b89; }

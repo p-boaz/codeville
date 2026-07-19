@@ -9,14 +9,15 @@ Codeville has two registers with one contract.
 The **village stream** (the wall-safe register) receives only project-scoped typed envelopes containing:
 
 - session lifecycle and planning/reading/editing phases
-- broad command category: test, build, lint, or other
+- command category (test, build, lint, other) plus the command line itself (truncated, for the desk feed — never its output or working directory)
+- names of files read or edited and search query text (amended 2026-07-18: the desk feed favors specificity; diffs and file contents still never cross)
 - approval-needed category and explicit local approval details
 - tests passed/failed
 - a validated completion debrief: `landed`, `followUp`, and `followUpRecommended`
 - landable-change counts only (`diff_ready`: files changed, insertions, deletions) and landing outcomes (applied commit prefix, kept branch name)
 - sanitized pending question text, option labels, conversation ownership/status, opaque thread IDs, safe-event counts, and connection/start timestamps
 
-The event translator never places prompts, source, diffs, command output, or raw agent messages into the village stream. Completion prose is treated as untrusted: Codeville extracts only a marked JSON object, requires two strings of at most 96 characters and one boolean, then rejects paths, URLs, emails, markdown/code syntax, code-shaped identifiers, common secret names/prefixes, and malformed payloads. A missing or invalid marker produces **Result needs review** — never a fabricated debrief.
+The event translator never places prompts, source code, diffs, command output, or raw agent messages into the village stream. Command text and touched-file names do cross (amended 2026-07-18) — they feed the desk's village feed, and wall mode does not render that panel, so the projectable wall surface still shows only phases and counts. Completion prose is treated as untrusted: Codeville extracts only a marked JSON object, requires two strings of at most 96 characters and one boolean, then rejects URLs, emails, markdown/code syntax, common secret names/prefixes, and malformed payloads (file paths and dotted names are allowed — they are the specificity the desk wants). A missing or invalid marker produces **Result needs review** — never a fabricated debrief.
 
 The **Foreman's Desk register** is privileged, owner-initiated, and invoke-only: `scaffold:diff` returns the session's real per-file patches for inspection, and the scaffold summary carries a *desk account* — the builder's own prose in which dotted or path-like tokens are allowed only when they name a file the session's diffstat proves was changed. The desk register never crosses the village event channel. Raw marker prose is held transiently in the privileged process until the diff is known, validated into the desk account, then discarded.
 

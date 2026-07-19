@@ -40,39 +40,67 @@ export const initialSessionState: SessionState = {
   debrief: null,
 };
 
-const labels: Record<VillageEvent['type'], string> = {
-  session_started: 'Builder arrived',
-  planning: 'Drawing construction plans',
-  reading: 'Studying the project',
-  editing: 'Building the improvement',
-  running_command: 'Running an inspection',
-  approval_required: 'Waiting for your decision',
-  input_required: 'Waiting for your reply',
-  input_resolved: 'Reply sent to the builder',
-  tests_passed: 'Inspection passed',
-  tests_failed: 'Inspection found a problem',
-  session_completed: 'Improvement completed',
-  session_needs_review: 'Result needs review',
-  session_external: 'Conversation moved to Ghostty',
-  session_failed: 'Construction paused',
-  session_interrupted: 'Work stopped safely',
-  session_redirected: 'New direction sent to the builder',
-  diff_ready: 'Improvement ready for inspection',
-  session_applied: 'Improvement installed in your repository',
-  session_kept: 'Branch kept for your own merge',
-  session_discarded: 'Session work discarded',
-};
+// Specific over cute: every label carries whatever safe detail the event
+// brought along (file names, command text, diff stats, the debrief line).
+export function describeEvent(event: VillageEvent): string {
+  switch (event.type) {
+    case 'session_started':
+      return 'Builder arrived';
+    case 'planning':
+      return 'Planning';
+    case 'reading':
+      return event.detail ? `Reading ${event.detail}` : event.quantity ? `Reading the project · ${event.quantity} steps` : 'Reading the project';
+    case 'editing':
+      return event.detail ? `Editing ${event.detail}` : event.quantity != null ? `Editing ${event.quantity} ${event.quantity === 1 ? 'file' : 'files'}` : 'Editing files';
+    case 'running_command':
+      if (event.command) return `Running ${event.command}`;
+      return { test: 'Running tests', build: 'Building', lint: 'Linting', other: 'Running a command' }[event.category];
+    case 'approval_required':
+      return `Needs your approval — ${{ command: 'command', file_change: 'file change', permissions: 'permissions' }[event.category]}`;
+    case 'input_required':
+      return 'Asked you a question';
+    case 'input_resolved':
+      return 'Reply sent to the builder';
+    case 'tests_passed':
+      return 'Tests passed';
+    case 'tests_failed':
+      return 'Tests failed';
+    case 'session_completed':
+      return `Done — ${event.debrief.landed}`;
+    case 'session_needs_review':
+      return 'Result needs review';
+    case 'session_external':
+      return 'Conversation moved to Ghostty';
+    case 'session_failed':
+      return 'Builder hit a problem';
+    case 'session_interrupted':
+      return 'Stopped safely';
+    case 'session_redirected':
+      return 'New direction sent';
+    case 'diff_ready':
+      return `Ready for inspection — ${event.filesChanged} ${event.filesChanged === 1 ? 'file' : 'files'}, +${event.insertions} −${event.deletions}`;
+    case 'session_applied':
+      return `Installed (commit ${event.commit.slice(0, 7)})`;
+    case 'session_kept':
+      return `Branch kept — ${event.branch}`;
+    case 'session_discarded':
+      return 'Work discarded';
+  }
+}
+
+function toneForEvent(event: VillageEvent): ActivityEntry['tone'] {
+  return event.type === 'session_completed' || event.type === 'tests_passed' || event.type === 'session_applied' || event.type === 'session_kept'
+    ? 'success'
+    : event.type === 'session_failed' || event.type === 'tests_failed'
+      ? 'danger'
+      : phaseForEvent(event) === 'idle'
+        ? 'neutral'
+        : 'active';
+}
 
 export function reduceSession(state: SessionState, event: VillageEvent): SessionState {
   const phase = phaseForEvent(event);
-  const tone: ActivityEntry['tone'] =
-    event.type === 'session_completed' || event.type === 'tests_passed' || event.type === 'session_applied' || event.type === 'session_kept'
-      ? 'success'
-      : event.type === 'session_failed' || event.type === 'tests_failed'
-        ? 'danger'
-        : phase === 'idle'
-          ? 'neutral'
-          : 'active';
+  const tone = toneForEvent(event);
 
   return {
     phase,
@@ -89,27 +117,38 @@ export function reduceSession(state: SessionState, event: VillageEvent): Session
       {
         id: `${event.at}-${event.type}-${state.events.length}`,
         at: event.at,
-        label:
-          event.type === 'running_command'
-            ? commandActivityLabel(event.category)
-            : labels[event.type],
+        label: describeEvent(event),
         tone,
       },
     ].slice(-8),
   };
 }
 
-function commandActivityLabel(category: Extract<VillageEvent, { type: 'running_command' }>['category']): string {
-  switch (category) {
-    case 'test':
-      return 'Running a code inspection';
-    case 'build':
-      return 'Assembling the project';
-    case 'lint':
-      return 'Checking craftsmanship';
-    case 'other':
-      return 'Using local workshop tools';
+export interface FeedEntry {
+  id: string;
+  projectId: string;
+  name: string;
+  taskTag: string;
+  label: string;
+  tone: ActivityEntry['tone'];
+  at: string;
+}
+
+const FEED_LIMIT = 30;
+
+// One village-wide feed across all builders. A row identical to the latest
+// one (same builder, same label) refreshes its timestamp instead of stacking.
+export function reduceFeed(feed: FeedEntry[], input: { projectId: string; name: string; taskTag: string; event: VillageEvent }): FeedEntry[] {
+  const label = describeEvent(input.event);
+  const tone = toneForEvent(input.event);
+  const last = feed.at(-1);
+  if (last && last.projectId === input.projectId && last.label === label) {
+    return [...feed.slice(0, -1), { ...last, at: input.event.at }];
   }
+  return [
+    ...feed,
+    { id: `${input.event.at}-${input.projectId}-${input.event.type}-${feed.length}`, projectId: input.projectId, name: input.name, taskTag: input.taskTag, label, tone, at: input.event.at },
+  ].slice(-FEED_LIMIT);
 }
 
 export function beginSession(state: SessionState): SessionState {

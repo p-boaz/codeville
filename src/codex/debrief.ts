@@ -4,7 +4,7 @@ const marker = 'CODEVILLE_RESULT:';
 const maxQuestionLength = 240;
 const maxChoiceLength = 80;
 
-export const debriefDeveloperInstructions = `Every final answer must end with exactly one line beginning ${marker} followed by one JSON object. Use {"status":"completed","landed":"A plain-language outcome under 96 characters.","followUp":"One next step under 96 characters, or No follow-up recommended.","followUpRecommended":true} only when the requested work is complete. Use {"status":"waiting_for_input","question":"One bounded question under 240 characters.","choices":["Optional choice under 80 characters"]} when you intentionally stop for user direction. Do not claim completion without a valid completed marker. Do not include paths, URLs, commands, code, identifiers, secrets, or markdown in any field.`;
+export const debriefDeveloperInstructions = `Every final answer must end with exactly one line beginning ${marker} followed by one JSON object. Use {"status":"completed","landed":"A plain-language outcome under 96 characters.","followUp":"One next step under 96 characters, or No follow-up recommended.","followUpRecommended":true} only when the requested work is complete. Use {"status":"waiting_for_input","question":"One bounded question under 240 characters.","choices":["Optional choice under 80 characters"]} when you intentionally stop for user direction. Do not claim completion without a valid completed marker. Naming changed files is encouraged; do not include URLs, commands, code snippets, secrets, or markdown in any field.`;
 
 export function parseCodevilleResult(text: string | null | undefined): CodevilleResult | null {
   if (!text) return null;
@@ -67,13 +67,14 @@ export function sanitizePromptText(value: string, maxLength = maxQuestionLength)
   return sanitizeSafeText(value, maxLength);
 }
 
+// Relaxed 2026-07-18: file paths and dotted names are welcome specificity for
+// the desk. URLs, emails, secret shapes, and code syntax stay out.
 function sanitizeSafeText(value: string, maxLength: number): string | null {
   const normalized = value.replace(/\s+/g, ' ').trim();
   if (!normalized || normalized.length > maxLength) return null;
-  if (/[\\/`$<>{}|]/.test(normalized) || normalized.includes('[') || normalized.includes(']')) return null;
+  if (/[\\`$<>{}|]/.test(normalized) || normalized.includes('[') || normalized.includes(']')) return null;
   if (/https?:|www\.|\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/i.test(normalized)) return null;
   if (/\b(sk-[a-z0-9_-]+|api[_-]?key|secret|token|password)\b/i.test(normalized)) return null;
-  if (/\b[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+\b/.test(normalized)) return null;
   if (/\b(?:const|let|var|function|class|import|export|SELECT|INSERT|DELETE|UPDATE)\b|=>|;\s*$/i.test(normalized)) return null;
   return normalized;
 }

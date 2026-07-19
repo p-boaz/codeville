@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import type { ConnectionProof, InputResponse, PendingInputView, PendingScaffoldView, ProjectProgress, EnvironmentStatus, ProjectSelection, SessionDiffView, SkillOption } from '../../shared/village-events';
-import type { SessionState } from '../../state/session-machine';
+import type { FeedEntry, SessionState } from '../../state/session-machine';
 import { ConnectionProofPanel } from './ConnectionProofPanel';
 import { InspectionCard } from './InspectionCard';
 import { InteractionCard } from './InteractionCard';
@@ -37,6 +37,7 @@ interface TaskPanelProps {
   proof: ConnectionProof | null;
   handoffNotice: string | null;
   error: string | null;
+  feed: FeedEntry[];
   onTaskChange(task: string): void;
   onChooseProject(): void;
   onEmptyLot(): void;
@@ -100,6 +101,7 @@ export function TaskPanel({
   proof,
   handoffNotice,
   error,
+  feed,
   onTaskChange,
   onChooseProject,
   onEmptyLot,
@@ -192,18 +194,21 @@ export function TaskPanel({
         />
       )}
 
-      {session.events.length > 0 && (
-        <section className="activity-section" aria-label="Safe activity timeline">
+      {feed.length > 0 && (
+        <section className="activity-section" aria-label="Village feed">
           <div className="section-heading">
-            <span>Village activity</span>
-            <small>Safe events only</small>
+            <span>Village feed</span>
+            <small>All builders, newest first</small>
           </div>
           <ol className="activity-list">
-            {session.events.map((event, index) => (
-              <li key={event.id} className={event.tone}>
-                <span className="timeline-marker">{index === session.events.length - 1 ? '●' : '✓'}</span>
-                <span>{event.label}</span>
-                <time>{formatTime(event.at)}</time>
+            {[...feed].reverse().map((entry, index) => (
+              <li key={entry.id} className={`${entry.tone}${project && entry.projectId === project.projectId ? ' feed-selected' : ''}`}>
+                <span className="timeline-marker">{index === 0 ? '●' : '✓'}</span>
+                <span className="feed-body">
+                  <span className="feed-source">{entry.name}{entry.taskTag ? ` · ${entry.taskTag}` : ''}</span>
+                  <span>{entry.label}</span>
+                </span>
+                <time>{formatTime(entry.at)}</time>
               </li>
             ))}
           </ol>

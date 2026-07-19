@@ -22,20 +22,24 @@ describe('CODEVILLE_RESULT privacy boundary', () => {
   });
 
   it.each([
-    '/Users/private/project/src/file.ts changed',
+    'Tightened retry logic in src/kalshi/strategy.ts',
+    'Renamed health.js and updated package.json',
+  ])('allows debriefs that name files and dotted identifiers: %s', (value) => {
+    expect(sanitizeDebriefText(value)).toBe(value);
+  });
+
+  it.each([
     'See https://example.com/result',
     'Use `pnpm test` next',
     'Token sk-private-secret',
-    'Call project.healthSummary now',
     'const leaked = true;',
-  ])('rejects path-like, code-shaped, or secret-shaped text: %s', (value) => {
+  ])('still rejects URL, code-shaped, or secret-shaped text: %s', (value) => {
     expect(sanitizeDebriefText(value)).toBeNull();
   });
 
   it.each([
     'ordinary final answer',
     'CODEVILLE_RESULT: nope',
-    'CODEVILLE_RESULT: {"status":"completed","landed":"/tmp/leak","followUp":"none","followUpRecommended":false}',
     'CODEVILLE_RESULT: {"status":"completed","question":"Contradictory"}',
     'CODEVILLE_RESULT: {"status":"waiting_for_input","question":"Missing choices type","choices":"yes"}',
     `CODEVILLE_RESULT: {"status":"waiting_for_input","question":"${'x'.repeat(241)}"}`,

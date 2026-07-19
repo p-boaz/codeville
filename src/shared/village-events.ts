@@ -27,9 +27,9 @@ export type CodevilleResult =
 export type VillageEvent =
   | { type: 'session_started'; at: string; model: string }
   | { type: 'planning'; at: string }
-  | { type: 'reading'; at: string; quantity?: number }
-  | { type: 'editing'; at: string; quantity?: number }
-  | { type: 'running_command'; at: string; category: CommandCategory }
+  | { type: 'reading'; at: string; quantity?: number; detail?: string }
+  | { type: 'editing'; at: string; quantity?: number; detail?: string }
+  | { type: 'running_command'; at: string; category: CommandCategory; command?: string }
   | { type: 'approval_required'; at: string; requestId: string; category: 'command' | 'file_change' | 'permissions' }
   | { type: 'input_required'; at: string; input: SafePendingInput }
   | { type: 'input_resolved'; at: string }
