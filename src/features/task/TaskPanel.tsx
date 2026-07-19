@@ -272,13 +272,6 @@ export function TaskPanel({
         </section>
       )}
 
-      <section className="privacy-note">
-        <span className="privacy-icon" aria-hidden="true">◇</span>
-        <div>
-          <strong>Private by construction</strong>
-          <p>Task drafts stay in memory and are cleared when Codeville closes. Prompts, code, diffs, commands, and output are never sent to the village view.</p>
-        </div>
-      </section>
 
       <div className="panel-actions">
         {sessionActive ? (
@@ -412,7 +405,7 @@ function WorkOrdersSection({ queue, canStartNext, onAdd, onDelete, onStartNext }
         <button className="secondary-button" disabled={!draft.trim()} onClick={() => { onAdd(draft); setDraft(''); }}>Add</button>
       </div>
       {canStartNext && <button className="primary-button" onClick={onStartNext}>Start next order <span aria-hidden="true">→</span></button>}
-      <small>Orders are stored on this Mac (see the privacy note). The next order starts automatically when an improvement lands; otherwise start it yourself here.</small>
+      <small>Orders are stored on this Mac. The next order starts automatically when an improvement lands; otherwise start it yourself here.</small>
     </details>
   );
 }

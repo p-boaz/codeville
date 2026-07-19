@@ -54,7 +54,6 @@ describe('TaskPanel', () => {
     );
 
     expect(screen.getByRole('button', { name: /start building/i })).toBeDisabled();
-    expect(screen.getByText(/private by construction/i)).toBeVisible();
   });
 
   it('offers repo-specific skills before overarching ones and reports equipped state', () => {
