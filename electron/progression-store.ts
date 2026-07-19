@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 import { resumablePendingInput } from '../src/codex/debrief';
@@ -48,6 +48,10 @@ export class ProgressionStore {
         await this.write(migrated);
         return migrated;
       }
+      // A file that fails validation is quarantined, never silently replaced:
+      // the next mutation would otherwise overwrite the user's real village.
+      await copyFile(this.filePath, `${this.filePath}.invalid-${Date.now()}.json`).catch(() => undefined);
+      console.warn('[store] progression.json failed validation — quarantined a copy and starting empty');
       return emptyProgression();
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') { this.firstRead = false; return emptyProgression(); }
@@ -325,7 +329,7 @@ export function validateProgression(value: unknown): value is ProgressionData {
 
 function validateSessionRecord(record: SessionRecord): boolean {
   return Boolean(record && typeof record.sessionId === 'string' && typeof record.endedAt === 'string' &&
-    ['completed', 'needs_review'].includes(record.outcome) &&
+    ['completed', 'needs_review', 'interrupted'].includes(record.outcome) &&
     Number.isInteger(record.filesChanged) && Number.isInteger(record.insertions) && Number.isInteger(record.deletions) &&
     (record.landing === null || ['applied', 'kept', 'discarded'].includes(record.landing)) &&
     (record.wallLanded === null || (typeof record.wallLanded === 'string' && record.wallLanded.length <= 96)));

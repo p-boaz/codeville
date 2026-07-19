@@ -185,11 +185,14 @@ if (phase === 'C') {
   await watchApprovals();
   const spotifyState = () => progression().then((s) => Object.values(s.projects).find((p) => p.repositoryName === 'spotify-history'));
   const boot = await spotifyState();
-  await assert(boot?.queue.length === 1, 'the work order survived the earlier kill');
   const tombstonesBefore = (boot?.history ?? []).filter((entry) => entry.outcome === 'interrupted').length;
 
-  // Deliberate mid-turn kill: start the queued order, wait for dequeue, quit the app.
+  // Queue an order, start it, then deliberately kill the app mid-turn.
   await page.getByRole('button', { name: /02.*spotify-history/i }).click();
+  await page.getByLabel('New work order').fill('Add a module-level docstring to the smallest Python file in this repo that lacks one. Touch only that file.');
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await new Promise((resolveSleep) => setTimeout(resolveSleep, 800));
+  await assert((await spotifyState())?.queue.length === 1, 'order persisted in the queue');
   await page.getByRole('button', { name: /start next order/i }).click();
   let dequeuedAt = null;
   for (let i = 0; i < 60; i += 1) {

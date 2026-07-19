@@ -200,6 +200,11 @@ describe('ProgressionStore', () => {
     const record = value.projects[project.projectId].history.at(-1);
     expect(record).toMatchObject({ sessionId: 'session-x', outcome: 'interrupted', filesChanged: 0, landing: null });
     expect(value.projects[project.projectId].completedSessions).toBe(0);
+    // A FRESH store must validate and keep the tombstone — a rejected record
+    // silently empties the whole village on the next boot.
+    const reread = await new ProgressionStore(directory).read();
+    expect(reread.lots[0].name).toBe('spotify-history');
+    expect(reread.projects[project.projectId].history.at(-1)).toMatchObject({ outcome: 'interrupted' });
   });
 
   it('serializes concurrent sibling updates without losing either thread or completion', async () => {
