@@ -39,6 +39,19 @@ await sleep(fast ? 1_000 : 4_000);
 await page.getByRole('button', { name: /confirm and start builders/i }).click();
 await sleep(2_000);
 
+narrate('Beat 2b — The Village feed names every builder’s real steps; redirect one mid-turn');
+await sleep(fast ? 2_000 : 6_000);
+try {
+  await page.getByText('Redirect builder').first().click();
+  await page.getByLabel('Redirect direction').fill('Prefer the smallest correct fix; skip refactors.');
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  await page.getByText('New direction sent').first().waitFor({ timeout: 10_000 });
+  narrate('Direction folded into the live turn — the builder was never stopped');
+} catch {
+  narrate('(Redirect window missed — the turn finished first; continuing the tour)');
+}
+await sleep(fast ? 1_000 : 3_000);
+
 narrate('Beat 3 — Wall mode while five real Codex threads work (W toggles; watch chimneys, planks, blueprints)');
 await page.locator('.village-stage').click({ position: { x: 20, y: 20 } });
 await page.keyboard.press('w');
