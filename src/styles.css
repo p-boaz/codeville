@@ -328,6 +328,8 @@ button:disabled { cursor: not-allowed; opacity: 0.42; }
 .wall-mode .workspace { grid-template-columns: 1fr; }
 .wall-mode .village-stage { max-width: none; }
 .orders-panel, .ledger-panel { display: flex; flex-direction: column; gap: 8px; }
+.orders-heading { display: flex; justify-content: space-between; gap: 10px; font-size: 11px; font-weight: 700; }
+.orders-heading strong { color: #a4dfaa; font-size: 9.5px; text-transform: uppercase; }
 .orders-list, .ledger-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .orders-list li { display: flex; align-items: baseline; gap: 8px; font-size: 11px; color: var(--cream); }
 .order-position { font: 9.5px var(--font-mono); color: var(--gold); min-width: 12px; }

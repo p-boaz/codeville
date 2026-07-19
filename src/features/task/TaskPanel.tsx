@@ -381,8 +381,8 @@ function WorkOrdersSection({ queue, canStartNext, onAdd, onDelete, onStartNext }
 }) {
   const [draft, setDraft] = useState('');
   return (
-    <details className="proof-panel orders-panel" open={queue.length > 0}>
-      <summary><span>Work orders</span><strong>{queue.length ? `${queue.length} queued` : 'None queued'}</strong></summary>
+    <section className="proof-panel orders-panel" aria-label="Work orders">
+      <div className="orders-heading"><span>Work orders</span><strong>{queue.length ? `${queue.length} queued` : 'None queued'}</strong></div>
       {queue.length > 0 && (
         <ol className="orders-list" aria-label="Queued work orders">
           {queue.map((order, index) => (
@@ -406,6 +406,6 @@ function WorkOrdersSection({ queue, canStartNext, onAdd, onDelete, onStartNext }
       </div>
       {canStartNext && <button className="primary-button" onClick={onStartNext}>Start next order <span aria-hidden="true">→</span></button>}
       <small>Orders are stored on this Mac. The next order starts automatically when an improvement lands; otherwise start it yourself here.</small>
-    </details>
+    </section>
   );
 }

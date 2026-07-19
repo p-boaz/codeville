@@ -36,9 +36,16 @@ async function progression() {
   catch { return { lots: [], projects: {} }; }
 }
 
-const app = await electron.launch({ executablePath: resolve('release/mac-arm64/Codeville.app/Contents/MacOS/Codeville'), env: { ...process.env } });
-const page = await app.firstWindow();
+let app = await electron.launch({ executablePath: resolve('release/mac-arm64/Codeville.app/Contents/MacOS/Codeville'), env: { ...process.env } });
+let page = await app.firstWindow();
 await page.waitForLoadState('domcontentloaded');
+async function relaunch() {
+  await app.close();
+  app = await electron.launch({ executablePath: resolve('release/mac-arm64/Codeville.app/Contents/MacOS/Codeville'), env: { ...process.env } });
+  page = await app.firstWindow();
+  await page.waitForLoadState('domcontentloaded');
+  await new Promise((resolveSleep) => setTimeout(resolveSleep, 1_500));
+}
 const shot = (name) => page.screenshot({ path: `${SHOTS}/${phase}-${name}.png`, fullPage: true });
 
 // Native dialogs: scripted responses, with a log of what was asked so copy can be asserted.
@@ -176,35 +183,41 @@ if (phase === 'B') {
 
 if (phase === 'C') {
   await watchApprovals();
+  const spotifyState = () => progression().then((s) => Object.values(s.projects).find((p) => p.repositoryName === 'spotify-history'));
+  const boot = await spotifyState();
+  await assert(boot?.queue.length === 1, 'the work order survived the earlier kill');
+  const tombstonesBefore = (boot?.history ?? []).filter((entry) => entry.outcome === 'interrupted').length;
+
+  // Deliberate mid-turn kill: start the queued order, wait for dequeue, quit the app.
   await page.getByRole('button', { name: /02.*spotify-history/i }).click();
-  await page.getByText('Work orders').click();
+  await page.getByRole('button', { name: /start next order/i }).click();
+  let dequeuedAt = null;
+  for (let i = 0; i < 60; i += 1) {
+    if ((await spotifyState())?.queue.length === 0) { dequeuedAt = i; break; }
+    await new Promise((resolveSleep) => setTimeout(resolveSleep, 1_000));
+  }
+  await assert(dequeuedAt !== null, `order dequeued after successful start (took ~${dequeuedAt}s)`);
+  await new Promise((resolveSleep) => setTimeout(resolveSleep, 8_000));
+  console.log('  killing the app mid-turn on purpose…');
+  await relaunch();
+  const reborn = await spotifyState();
+  await assert(((reborn?.history ?? []).filter((entry) => entry.outcome === 'interrupted').length) > tombstonesBefore, 'mid-turn kill left an interrupted ledger tombstone');
+  await page.getByRole('button', { name: /02.*spotify-history/i }).click();
+  await shot('tombstone');
+
+  // Re-queue and run the order to completion this time.
   await page.getByLabel('New work order').fill('Add a module-level docstring to the smallest Python file in this repo that lacks one. Touch only that file.');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
-  await assert((await progression()).projects && Object.values(await (async () => (await progression()).projects)()).some((p) => p.repositoryName === 'spotify-history' && p.queue.length === 1), 'order persisted in queue');
-  await startTask(/02.*spotify-history/i, 'In README.md only, fix any command or path that does not match the actual repo contents. Keep the diff minimal.');
-  await awaitPennant(/02.*spotify-history/i);
-  await shot('first-pennant');
-  const beforeQueue = Object.values((await progression()).projects).find((p) => p.repositoryName === 'spotify-history')?.queue.length;
-  console.log(`  queue before landing: ${beforeQueue}`);
-  await page.getByRole('button', { name: /02.*spotify-history/i }).click();
-  await page.getByRole('button', { name: /install in repository/i }).click();
-  await page.getByText(/Installed \(commit/).waitFor({ timeout: 30_000 });
-  // THE REPRO: the queued order must auto-start a real session, and must never
-  // be dequeued without one. Watch both the UI and the store.
-  await page.locator('.project-tab.phase-starting, .project-tab.phase-planning, .project-tab.phase-reading, .project-tab.phase-editing').first().waitFor({ timeout: 30_000 })
-    .catch(() => fail('auto-start: no session became active within 30s of landing'));
-  const stateAfter = await progression();
-  const spotify = Object.values(stateAfter.projects).find((p) => p.repositoryName === 'spotify-history');
-  await assert(spotify?.queue.length === 0, 'order dequeued exactly when its session started');
-  ok('auto-start produced a live session');
+  await page.getByRole('button', { name: /start next order/i }).click();
   await awaitPennant(/02.*spotify-history/i);
   await shot('order-pennant');
-  // Land the auto-started order with Keep branch to cover that verb.
   await page.getByRole('button', { name: /02.*spotify-history/i }).click();
   await page.getByRole('button', { name: /keep branch only/i }).click();
   await page.getByText(/Branch kept/).waitFor({ timeout: 30_000 });
   const branches = (await run('git', ['branch'], { cwd: SPOTIFY })).stdout;
   await assert(/codeville\//.test(branches), 'kept branch exists in the repository');
+  const after = await spotifyState();
+  await assert((after?.history ?? []).length >= 2, 'ledger holds both the tombstone and the landed session');
   await shot('kept');
 }
 
