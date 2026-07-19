@@ -723,6 +723,16 @@ async function reconcileOrphanScaffolds(): Promise<void> {
   }
 }
 
+// One village, one process: a second instance sharing the store and scaffold
+// worktrees is a data-corruption class, not a feature.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (window) { if (window.isMinimized()) window.restore(); window.focus(); }
+  });
+}
+
 app.whenReady().then(() => {
   store = new ProgressionStore(app.getPath('userData'));
   scaffolds = new ScaffoldManager(join(app.getPath('userData'), 'scaffolds'));
