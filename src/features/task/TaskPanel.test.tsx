@@ -125,6 +125,29 @@ describe('TaskPanel', () => {
     expect(rows[1]).toHaveTextContent('Editing App.tsx · styles.css');
   });
 
+  it('queues a recommended follow-up as the next work order in one click', () => {
+    const onAddOrder = vi.fn();
+    render(
+      <TaskPanel
+        environment={{ codexAvailable: true, codexVersion: 'codex-cli 0.144.4', model: 'gpt-5.6-sol', platform: 'darwin' }}
+        project={{ projectId: 'project-1', path: '/safe/acorn', name: 'Acorn', slot: 0, isDemo: false }}
+        task="" session={initialSessionState} sessionActive={false}
+        progress={{ projectId: 'project-1', repositoryPath: '/safe/acorn', repositoryName: 'Acorn', isDemo: false, level: 1, completedSessions: 1, lastCompletedAt: '2026-07-18T00:00:00.000Z', lastDebrief: { landed: 'Health checks tightened.', followUp: 'Add coverage for the retry path.', followUpRecommended: true }, lastThreadId: null, conversationStatus: 'idle', pendingInput: null, handoffAt: null, safeEventCount: 0, lastTurnStartedAt: null, history: [], queue: [] }}
+        pendingInput={null} inputSubmitting={false} inputError={null}
+        pendingScaffold={null} sessionDiff={null} landingBusy={false} landingError={null}
+        onLoadDiff={vi.fn()} onCloseDiff={vi.fn()} onApply={vi.fn()} onKeep={vi.fn()} onDiscard={vi.fn()}
+        onAddOrder={onAddOrder} onDeleteOrder={vi.fn()} onStartNextOrder={vi.fn()}
+        onSteer={vi.fn()} onOpenScaffold={vi.fn()} onRefresh={vi.fn()}
+        skillOptions={[]} equippedSkills={[]} onToggleSkill={vi.fn()}
+        proof={null} handoffNotice={null} error={null}
+        feed={[]} onTaskChange={vi.fn()} onChooseProject={vi.fn()} onEmptyLot={vi.fn()} hasDemoLots={false} onUseDemoVillage={vi.fn()} onStart={vi.fn()} onInterrupt={vi.fn()}
+        onSubmitInput={vi.fn()} onHandoff={vi.fn()} onReclaim={vi.fn()} onNewTask={vi.fn()} onResetVillage={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Queue as next work order' }));
+    expect(onAddOrder).toHaveBeenCalledWith('Add coverage for the retry path.');
+  });
+
   it('shows metadata proof and disables Ghostty handoff while a turn is active', () => {
     render(<TaskPanel
       environment={{ codexAvailable: true, codexVersion: 'codex-cli 0.144.4', model: 'gpt-5.6-sol', platform: 'darwin' }}

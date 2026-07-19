@@ -220,6 +220,9 @@ export function TaskPanel({
           <span className="eyebrow">Builder debrief</span>
           <div><strong>Landed</strong><p>{(session.debrief ?? progress?.lastDebrief)!.landed}</p></div>
           <div><strong>{(session.debrief ?? progress?.lastDebrief)!.followUpRecommended ? 'Recommended follow-up' : 'Follow-up'}</strong><p>{(session.debrief ?? progress?.lastDebrief)!.followUp}</p></div>
+          {(session.debrief ?? progress?.lastDebrief)!.followUpRecommended && (
+            <button className="text-button" onClick={() => onAddOrder((session.debrief ?? progress?.lastDebrief)!.followUp)}>Queue as next work order</button>
+          )}
         </section>
       )}
 
