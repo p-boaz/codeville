@@ -516,7 +516,7 @@ function registerIpc(): void {
     const runtime = runtimes.forProject(projectId);
     if (!runtime?.turnId || !client) throw new Error('This builder has no active turn to redirect');
     await client.steerTurn(runtime.threadId, runtime.turnId, message.trim());
-    window?.webContents.send('village:event', { projectId, event: { type: 'session_redirected', at: new Date().toISOString() } });
+    window?.webContents.send('village:event', { projectId, event: { type: 'session_redirected', at: new Date().toISOString(), direction: message.trim().slice(0, 80) } });
   });
   ipcMain.handle('session:continue', async (_event, projectId: string, reply: string) => {
     if (!reply.trim()) throw new Error('Enter a reply before continuing');

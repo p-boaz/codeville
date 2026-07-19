@@ -76,7 +76,7 @@ export function describeEvent(event: VillageEvent): string {
     case 'session_interrupted':
       return 'Stopped safely';
     case 'session_redirected':
-      return 'New direction sent';
+      return event.direction ? `New direction — ${event.direction}` : 'New direction sent';
     case 'diff_ready':
       return `Ready for inspection — ${event.filesChanged} ${event.filesChanged === 1 ? 'file' : 'files'}, +${event.insertions} −${event.deletions}`;
     case 'session_applied':

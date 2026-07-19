@@ -68,6 +68,8 @@ describe('session state machine', () => {
       'Done — Strategy notes tightened.',
     ]);
     expect(feed[0]).toMatchObject({ name: 'kalshi-mlb', taskTag: 'strategy review' });
+    const redirected = reduceFeed(feed, { ...base, event: { type: 'session_redirected', at: '2026-07-18T00:00:04.000Z', direction: 'Prefer minimal edits; do not restructure the README.' } });
+    expect(redirected.at(-1)?.label).toBe('New direction — Prefer minimal edits; do not restructure the README.');
   });
 
   it('coalesces consecutive identical rows per builder instead of repeating them', () => {

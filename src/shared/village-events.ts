@@ -42,7 +42,7 @@ export type VillageEvent =
   | { type: 'session_external'; at: string }
   | { type: 'session_failed'; at: string; recoverable: boolean }
   | { type: 'session_interrupted'; at: string }
-  | { type: 'session_redirected'; at: string }
+  | { type: 'session_redirected'; at: string; direction?: string }
   | { type: 'diff_ready'; at: string; filesChanged: number; insertions: number; deletions: number }
   | { type: 'session_applied'; at: string; commit: string }
   | { type: 'session_kept'; at: string; branch: string }
