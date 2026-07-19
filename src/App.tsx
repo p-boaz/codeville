@@ -85,6 +85,7 @@ export function App() {
         return current;
       });
     };
+    const unsubscribeProgression = window.codeville.onProgressionUpdate(setProgression);
     const unsubscribeEvent = window.codeville.onVillageEvent(({ projectId, event }) => {
       setSessions((current) => ({ ...current, [projectId]: reduceSession(current[projectId] ?? initialSessionState, event) }));
       setFeed((current) => {
@@ -145,7 +146,7 @@ export function App() {
         return current;
       });
     });
-    return () => { unsubscribeEvent(); unsubscribeApproval(); unsubscribeInput(); unsubscribeFocus(); };
+    return () => { unsubscribeProgression(); unsubscribeEvent(); unsubscribeApproval(); unsubscribeInput(); unsubscribeFocus(); };
   }, []);
 
   useEffect(() => { mutedRef.current = muted; localStorage.setItem(mutedStorageKey, muted ? '1' : '0'); }, [muted]);

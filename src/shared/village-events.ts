@@ -276,6 +276,7 @@ export interface CodevilleBridge {
   discardSession(projectId: string): Promise<void>;
   getProgression(): Promise<ProgressionData>;
   resetProgression(): Promise<ProgressionData | null>;
+  onProgressionUpdate(listener: (data: ProgressionData) => void): () => void;
   onVillageEvent(listener: (event: ProjectVillageEvent) => void): () => void;
   onApprovalRequest(listener: (request: ApprovalRequestView | null) => void): () => void;
   onInputRequest(listener: (update: InputRequestUpdate) => void): () => void;

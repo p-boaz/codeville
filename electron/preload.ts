@@ -35,6 +35,11 @@ const bridge: CodevilleBridge = {
   discardSession: (projectId) => ipcRenderer.invoke('scaffold:discard', projectId),
   getProgression: () => ipcRenderer.invoke('progression:get'),
   resetProgression: () => ipcRenderer.invoke('progression:reset'),
+  onProgressionUpdate: (listener) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, data: unknown) => listener(data as never);
+    ipcRenderer.on('progression:update', wrapped);
+    return () => ipcRenderer.removeListener('progression:update', wrapped);
+  },
   onVillageEvent: (listener) => {
     const wrapped = (_event: Electron.IpcRendererEvent, villageEvent: ProjectVillageEvent) => listener(villageEvent);
     ipcRenderer.on('village:event', wrapped);

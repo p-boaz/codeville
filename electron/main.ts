@@ -738,7 +738,12 @@ app.whenReady().then(() => {
   scaffolds = new ScaffoldManager(join(app.getPath('userData'), 'scaffolds'));
   registerIpc();
   createWindow();
-  void reconcileOrphanScaffolds().then(updateAttentionBadge);
+  void reconcileOrphanScaffolds().then(async () => {
+    void updateAttentionBadge();
+    // The renderer's boot fetch races reconciliation — push the post-reconcile
+    // truth so fresh tombstones are visible immediately.
+    window?.webContents.send('progression:update', await store.read());
+  });
 });
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 app.on('before-quit', () => { void client?.stop(); });

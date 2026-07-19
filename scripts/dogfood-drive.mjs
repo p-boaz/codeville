@@ -91,8 +91,14 @@ async function assign(slot, repoPath, messageResponses = []) {
   await new Promise((resolveSleep) => setTimeout(resolveSleep, 700));
 }
 
-async function startTask(lotPattern, task) {
+async function prepareDesk(lotPattern) {
   await page.getByRole('button', { name: lotPattern }).click();
+  const planAnother = page.getByRole('button', { name: /plan another improvement/i });
+  if (await planAnother.isVisible().catch(() => false)) await planAnother.click();
+}
+
+async function startTask(lotPattern, task) {
+  await prepareDesk(lotPattern);
   await page.getByPlaceholder('Describe one concrete coding task').fill(task);
   await page.getByRole('button', { name: /start building/i }).click();
 }
@@ -228,9 +234,9 @@ if (phase === 'E') {
   await watchApprovals();
   await assign(2, GEDCOM, [1]); // second workshop
   await assert((await progression()).lots[2]?.name?.includes('· 2'), 'second workshop named "· 2"');
-  await page.getByRole('button', { name: /01.*gedcom-kit/i }).click();
+  await prepareDesk(/01.*gedcom-kit/i);
   await page.getByPlaceholder('Describe one concrete coding task').fill('In README.md only, tighten the wording of the Data layout section. Do not change any other file.');
-  await page.getByRole('button', { name: /03.*gedcom-kit · 2/i }).click();
+  await prepareDesk(/03.*gedcom-kit · 2/i);
   await page.getByPlaceholder('Describe one concrete coding task').fill('In README.md only, tighten the wording of the Quick start section. Do not change any other file.');
   const boxes = page.locator('.batch-select input');
   for (let i = 0; i < await boxes.count(); i += 1) await boxes.nth(i).check();
