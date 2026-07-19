@@ -222,6 +222,49 @@ test('assigns, restores, isolates tasks, and confirms a selected real-project su
   }
 });
 
+test('village feed names every builder with specific rows, and mid-turn steering redirects a live turn', async () => {
+  test.setTimeout(120_000);
+  const root = await mkdtemp(join(tmpdir(), 'codeville-feed-e2e-'));
+  const userData = join(root, 'user-data');
+  const protocolLog = join(root, 'protocol.jsonl');
+  const alpha = await createSafeRepository(root, 'alpha-ledger');
+  const beta = await createSafeRepository(root, 'beta-docs');
+  const fixtureEnv = { CODEVILLE_CODEX_BINARY: resolve('fixtures/fake-codex.mjs'), CODEVILLE_FAKE_LOG: protocolLog };
+  const electronApp = await electron.launch(launchOptions(userData, fixtureEnv));
+
+  try {
+    const page = await electronApp.firstWindow();
+    failOnRendererCrash(page);
+    await chooseRepository(electronApp, page, 0, alpha);
+    await chooseRepository(electronApp, page, 1, beta);
+
+    await page.getByRole('button', { name: /01.*alpha-ledger/i }).click();
+    await page.getByPlaceholder('Describe one concrete coding task').fill('fixture:activity tighten health checks');
+    await page.getByRole('button', { name: /start building/i }).click();
+    await expect(page.getByText('Done — Tightened health checks in src/health.js.').first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/alpha-ledger · fixture:activity tighten/).first()).toBeVisible();
+    await expect(page.getByText('Editing health.js · README.md').first()).toBeVisible();
+    await expect(page.getByText('Running pnpm test').first()).toBeVisible();
+    await expect(page.getByText('Tests passed').first()).toBeVisible();
+
+    await page.getByRole('button', { name: /02.*beta-docs/i }).click();
+    await page.getByPlaceholder('Describe one concrete coding task').fill('fixture:steerable qa review');
+    await page.getByRole('button', { name: /start building/i }).click();
+    await page.getByText('Redirect builder').click();
+    await page.getByLabel('Redirect direction').fill('Prefer the smaller fix');
+    await page.getByRole('button', { name: 'Send', exact: true }).click();
+    await expect(page.getByText('New direction sent').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Done — Followed the new direction to the letter.').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/beta-docs · fixture:steerable qa review/).first()).toBeVisible();
+
+    const protocol = (await readFile(protocolLog, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));
+    const steer = protocol.find((entry) => entry.method === 'turn/steer');
+    expect(steer?.params.input?.[0]?.text).toBe('Prefer the smaller fix');
+  } finally {
+    await electronApp.close();
+  }
+});
+
 test(`runs ${projectCount} real Codex builders without replacing the village canvas`, async () => {
   test.setTimeout(360_000);
   const userData = await mkdtemp(join(tmpdir(), 'codeville-e2e-'));

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* global process, setTimeout */
+/* global process, setTimeout, clearTimeout */
 import { appendFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 
@@ -14,6 +14,7 @@ const lines = createInterface({ input: process.stdin });
 let threadNumber = 0;
 let turnNumber = 0;
 const nativeByRequest = new Map();
+const steerableTurns = new Map();
 
 function send(message) { process.stdout.write(`${JSON.stringify(message)}\n`); }
 function log(message) { if (process.env.CODEVILLE_FAKE_LOG) appendFileSync(process.env.CODEVILLE_FAKE_LOG, `${JSON.stringify(message)}\n`); }
@@ -43,6 +44,16 @@ lines.on('line', (line) => {
   }
 
   if (message.method === 'turn/interrupt') return send({ id: message.id, result: {} });
+  if (message.method === 'turn/steer') {
+    send({ id: message.id, result: {} });
+    const pending = steerableTurns.get(message.params.expectedTurnId);
+    if (pending) {
+      clearTimeout(pending.timer);
+      steerableTurns.delete(message.params.expectedTurnId);
+      setTimeout(() => complete(pending.threadId, message.params.expectedTurnId, 'CODEVILLE_RESULT: {"status":"completed","landed":"Followed the new direction to the letter.","followUp":"No follow-up recommended.","followUpRecommended":false}'), 40);
+    }
+    return;
+  }
   if (message.method === 'turn/start') {
     const turnId = `019-fixture-turn-${++turnNumber}`;
     send({ id: message.id, result: { turn: { id: turnId } } });
@@ -55,6 +66,27 @@ lines.on('line', (line) => {
         { id: 'channel', header: 'Channel', question: 'Which fixture channel?', isOther: true, isSecret: false, options: [{ label: 'Stable', description: 'Stable fixture' }, { label: 'Preview', description: 'Preview fixture' }] },
         { id: 'credential', header: 'Credential', question: 'Enter a temporary fixture credential.', isOther: true, isSecret: true, options: null },
       ] } }), 20);
+    }
+    if (text.includes('fixture:activity')) {
+      const threadId = message.params.threadId;
+      const cwd = '/fixture/project';
+      const item = (delay, payload) => setTimeout(() => send({ method: 'item/started', params: { threadId, turnId, item: payload } }), delay);
+      item(10, { type: 'reasoning', id: `plan-${turnId}`, summary: [], content: [] });
+      item(25, { type: 'commandExecution', id: `read-${turnId}`, command: 'cat src/health.js', cwd, processId: null, source: 'agent', status: 'inProgress', commandActions: [{ type: 'read', command: 'cat src/health.js', name: 'health.js', path: `${cwd}/src/health.js` }], aggregatedOutput: null, exitCode: null, durationMs: null });
+      item(40, { type: 'fileChange', id: `edit-${turnId}`, status: 'inProgress', changes: [
+        { path: `${cwd}/src/health.js`, kind: { type: 'update', move_path: null }, diff: 'fixture-diff' },
+        { path: `${cwd}/README.md`, kind: { type: 'update', move_path: null }, diff: 'fixture-diff' },
+      ] });
+      item(55, { type: 'commandExecution', id: `test-${turnId}`, command: 'pnpm test', cwd, processId: null, source: 'agent', status: 'inProgress', commandActions: [{ type: 'unknown', command: 'pnpm test' }], aggregatedOutput: null, exitCode: null, durationMs: null });
+      setTimeout(() => send({ method: 'item/completed', params: { threadId, turnId, item: { type: 'commandExecution', id: `test-${turnId}`, command: 'pnpm test', cwd, processId: null, source: 'agent', status: 'completed', commandActions: [{ type: 'unknown', command: 'pnpm test' }], aggregatedOutput: 'ok', exitCode: 0, durationMs: 5 } } }), 70);
+      return setTimeout(() => complete(threadId, turnId, 'CODEVILLE_RESULT: {"status":"completed","landed":"Tightened health checks in src/health.js.","followUp":"No follow-up recommended.","followUpRecommended":false}'), 90);
+    }
+    if (text.includes('fixture:steerable')) {
+      const threadId = message.params.threadId;
+      send({ method: 'item/started', params: { threadId, turnId, item: { type: 'reasoning', id: `plan-${turnId}`, summary: [], content: [] } } });
+      const timer = setTimeout(() => { steerableTurns.delete(turnId); complete(threadId, turnId); }, 8000);
+      steerableTurns.set(turnId, { threadId, timer });
+      return;
     }
     if (text.includes('fixture:waiting')) return setTimeout(() => complete(message.params.threadId, turnId, 'CODEVILLE_RESULT: {"status":"waiting_for_input","question":"Which fixture channel should continue?","choices":["Stable","Preview"]}'), 20);
     if (text.includes('fixture:review')) return setTimeout(() => complete(message.params.threadId, turnId, 'Turn ended without a marker.'), 20);
