@@ -302,14 +302,33 @@ if (phase === 'F') {
 }
 
 if (phase === 'H') {
+  await watchApprovals();
   const state = await progression();
   console.log('  lots:', state.lots.map((lot) => lot.name ?? '—').join(' | '));
   for (const project of Object.values(state.projects)) {
     console.log(`  ${project.repositoryName}: level ${project.level}, sessions ${project.completedSessions}, ledger ${project.history.length}, queue ${project.queue.length}`);
   }
+  ok('persistence glance recorded (this launch itself proved restore)');
+
+  // Interrupt rep: start real work, stop it safely, expect a calm stopped state.
+  await startTask(/01.*gedcom-kit/i, 'List every TODO or FIXME comment in this repository and summarize them in your final answer. Do not modify any file.');
+  await page.locator('.project-tab.phase-planning, .project-tab.phase-reading, .project-tab.phase-editing').first().waitFor({ timeout: 90_000 });
+  await page.getByRole('button', { name: /stop safely/i }).click();
+  await page.locator('.project-tab.phase-interrupted, .project-tab.phase-idle, .project-tab.phase-failed').first().waitFor({ timeout: 60_000 });
+  ok('interrupt reached a safe stopped state');
+  await shot('interrupted');
+
   await page.getByText('Codex connection proof').first().click().catch(() => undefined);
   await shot('proof');
-  ok('persistence glance recorded (this launch itself proved restore)');
+
+  // Reset village through its real confirm, then verify pristine state.
+  await scriptDialogs(null, [0]);
+  await page.getByRole('button', { name: /reset village|reset demo village/i }).click();
+  await new Promise((resolveSleep) => setTimeout(resolveSleep, 1_200));
+  const wiped = await progression();
+  await assert(wiped.lots.every((lot) => lot.projectId === null), 'reset leaves five empty lots');
+  await assert(Object.keys(wiped.projects).length === 0, 'reset clears all project records');
+  await shot('pristine');
 }
 
 await shot('end');
