@@ -222,6 +222,31 @@ export class ProgressionStore {
     });
   }
 
+  /** A session whose turn died (quit, crash, kill) must still leave ledger evidence. */
+  async recordAbandonedSession(projectId: string, sessionId: string, startedAt: string | null, endedAt: string): Promise<ProgressionData> {
+    return this.enqueueMutation(async () => {
+    const data = await this.readNow();
+    const current = data.projects[projectId];
+    if (!current) return data;
+    if (current.history.some((entry) => entry.sessionId === sessionId)) return data;
+    current.history = appendHistory(current.history, {
+      sessionId,
+      startedAt,
+      endedAt,
+      outcome: 'interrupted',
+      filesChanged: 0,
+      insertions: 0,
+      deletions: 0,
+      testsPassed: null,
+      durationMs: null,
+      landing: null,
+      wallLanded: null,
+    });
+    await this.write(data);
+    return data;
+    });
+  }
+
   async recordExternal(projectId: string, at: string): Promise<ProgressionData> {
     return this.updateConversation(projectId, { conversationStatus: 'external', pendingInput: null, handoffAt: at });
   }

@@ -120,7 +120,7 @@ export interface SessionRecord {
   sessionId: string;
   startedAt: string | null;
   endedAt: string;
-  outcome: 'completed' | 'needs_review';
+  outcome: 'completed' | 'needs_review' | 'interrupted';
   filesChanged: number;
   insertions: number;
   deletions: number;

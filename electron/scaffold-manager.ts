@@ -23,6 +23,8 @@ export interface ScaffoldRecord {
   baseCommit: string;
   baseSubject: string;
   createdAt: string;
+  /** First line of the user-authored task — the honest commit-subject fallback when no verified account exists. */
+  task?: string;
   outcome?: ScaffoldOutcome | null;
 }
 
@@ -71,11 +73,11 @@ export class ScaffoldManager {
     }
   }
 
-  async create(repositoryPath: string, projectId: string, sessionId: string): Promise<ScaffoldRecord> {
-    return this.withRepoLock(repositoryPath, () => this.createLocked(repositoryPath, projectId, sessionId));
+  async create(repositoryPath: string, projectId: string, sessionId: string, task?: string): Promise<ScaffoldRecord> {
+    return this.withRepoLock(repositoryPath, () => this.createLocked(repositoryPath, projectId, sessionId, task));
   }
 
-  private async createLocked(repositoryPath: string, projectId: string, sessionId: string): Promise<ScaffoldRecord> {
+  private async createLocked(repositoryPath: string, projectId: string, sessionId: string, task?: string): Promise<ScaffoldRecord> {
     const baseCommit = await this.revParseHead(repositoryPath);
     const { stdout: subject } = await git(repositoryPath, ['log', '-1', '--format=%s', baseCommit]);
     const scaffoldPath = join(this.root, projectId, sessionId);
@@ -91,6 +93,7 @@ export class ScaffoldManager {
       baseCommit,
       baseSubject: subject.trim(),
       createdAt: new Date().toISOString(),
+      ...(task ? { task: task.split('\n')[0].slice(0, 80) } : {}),
     };
     await mkdir(this.recordsDir, { recursive: true });
     await writeFile(this.recordPath(sessionId), JSON.stringify(record, null, 2), { mode: 0o600 });

@@ -256,7 +256,7 @@ test('village feed names every builder with specific rows, and mid-turn steering
     await page.getByText('Redirect builder').click();
     await page.getByLabel('Redirect direction').fill('Prefer the smaller fix');
     await page.getByRole('button', { name: 'Send', exact: true }).click();
-    await expect(page.getByText('New direction sent').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('New direction — Prefer the smaller fix').first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Done — Followed the new direction to the letter.').first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/beta-docs · fixture:steerable qa review/).first()).toBeVisible();
 

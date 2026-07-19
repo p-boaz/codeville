@@ -192,6 +192,16 @@ describe('ProgressionStore', () => {
     expect(returned.projectId).toBe(graphletter.projectId);
   });
 
+  it('tombstones an abandoned session so a killed turn leaves ledger evidence', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'codeville-abandoned-'));
+    const store = new ProgressionStore(directory);
+    const project = await store.assignProject({ path: '/projects/spotify', name: 'spotify-history', slot: 0, isDemo: false });
+    const value = await store.recordAbandonedSession(project.projectId, 'session-x', '2026-07-19T23:22:30.000Z', '2026-07-19T23:30:00.000Z');
+    const record = value.projects[project.projectId].history.at(-1);
+    expect(record).toMatchObject({ sessionId: 'session-x', outcome: 'interrupted', filesChanged: 0, landing: null });
+    expect(value.projects[project.projectId].completedSessions).toBe(0);
+  });
+
   it('serializes concurrent sibling updates without losing either thread or completion', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'codeville-concurrent-store-'));
     const store = new ProgressionStore(directory);

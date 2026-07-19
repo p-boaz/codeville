@@ -246,9 +246,9 @@ export function TaskPanel({
           <ol className="ledger-list" aria-label="Session ledger">
             {[...progress.history].reverse().map((record) => (
               <li key={`${record.sessionId}-${record.endedAt}`}>
-                <span className={`ledger-outcome ${record.outcome}`}>{record.outcome === 'completed' ? '✓' : '?'}</span>
+                <span className={`ledger-outcome ${record.outcome}`}>{record.outcome === 'completed' ? '✓' : record.outcome === 'interrupted' ? '✕' : '?'}</span>
                 <span className="ledger-copy">
-                  <span>{record.wallLanded ?? 'Result needed review'}</span>
+                  <span>{record.wallLanded ?? (record.outcome === 'interrupted' ? 'Session ended early — no work landed' : 'Result needed review')}</span>
                   <small>
                     {formatDay(record.endedAt)} · {record.filesChanged} file{record.filesChanged === 1 ? '' : 's'} +{record.insertions} −{record.deletions}
                     {record.testsPassed !== null && ` · tests ${record.testsPassed ? 'passed' : 'failed'}`}

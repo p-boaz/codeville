@@ -464,7 +464,7 @@ function registerIpc(): void {
       await scaffolds.discard(previous);
     }
     const appServer = await ensureClient();
-    const scaffold = await scaffolds.create(input.projectPath, input.projectId, randomUUID());
+    const scaffold = await scaffolds.create(input.projectPath, input.projectId, randomUUID(), input.task);
     let thread;
     try {
       thread = await appServer.startThread(scaffold.scaffoldPath, model);
@@ -648,8 +648,8 @@ function registerIpc(): void {
     const record = await requireScaffold(projectId);
     await scaffolds.checkpoint(record);
     // The commit subject must describe THIS session's work: the scaffold's own
-    // verified desk account, never the project's last (possibly stale) debrief.
-    const summary = record.outcome?.deskLanded ?? 'Codeville improvement';
+    // verified desk account, else the user's task line — never a stale debrief.
+    const summary = record.outcome?.deskLanded ?? record.task ?? 'Codeville improvement';
     const result = await scaffolds.apply(record, `${summary}\n\nCodeville session ${record.sessionId}`);
     await scaffolds.discard(record);
     await store.recordLanding(projectId, record.sessionId, 'applied');
@@ -709,7 +709,11 @@ async function reconcileOrphanScaffolds(): Promise<void> {
       // An empty scaffold whose project still waits for a reply hosts a live
       // conversation — keep it so the resumed turn stays isolated from the checkout.
       const waiting = projects[record.projectId]?.conversationStatus === 'waiting';
-      if (stats.filesChanged === 0 && !waiting) await scaffolds.discard(record);
+      if (stats.filesChanged === 0 && !waiting) {
+        // Tombstone first: a killed turn must leave ledger evidence, never vanish.
+        await store.recordAbandonedSession(record.projectId, record.sessionId, record.createdAt, new Date().toISOString());
+        await scaffolds.discard(record);
+      }
     } catch (cause) {
       console.warn(`[scaffold] orphan reconcile failed for ${record.sessionId}: ${cause instanceof Error ? cause.message : String(cause)}`);
     }
