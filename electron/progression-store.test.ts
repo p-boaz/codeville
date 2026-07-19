@@ -166,6 +166,19 @@ describe('ProgressionStore', () => {
     await expect(store.addWorkOrder(project.projectId, '   ')).rejects.toThrow(/Describe the work order/);
   });
 
+  it('empties a lot while keeping the detached progression for a later return', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'codeville-clear-lot-'));
+    const store = new ProgressionStore(directory);
+    const graphletter = await store.assignProject({ path: '/projects/graphletter', name: 'graphletter', slot: 1, isDemo: false });
+    await store.recordCompletion(graphletter.projectId, '2026-07-18T00:00:00.000Z', { landed: 'Graph view improved.', followUp: 'No follow-up recommended.', followUpRecommended: false }, 3, null, 'session-g');
+    await store.recordLanding(graphletter.projectId, 'session-g', 'applied');
+    const value = await store.clearLot(1);
+    expect(value.lots[1]).toEqual({ slot: 1, projectId: null, path: null, name: null, isDemo: false });
+    expect(value.projects[graphletter.projectId]).toMatchObject({ level: 1, completedSessions: 1 });
+    const returned = await store.assignProject({ path: '/projects/graphletter', name: 'graphletter', slot: 4, isDemo: false });
+    expect(returned.projectId).toBe(graphletter.projectId);
+  });
+
   it('serializes concurrent sibling updates without losing either thread or completion', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'codeville-concurrent-store-'));
     const store = new ProgressionStore(directory);

@@ -195,6 +195,10 @@ button:disabled { cursor: not-allowed; opacity: 0.42; }
 .project-copy span { color: var(--cream-muted); font-size: 10.5px; }
 .icon-button { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 10px; color: var(--cream); background: transparent; transition: border-color .16s ease, color .16s ease; }
 .icon-button:hover:not(:disabled) { border-color: rgba(255,216,121,.5); color: var(--gold-bright); }
+.card-actions { display: flex; flex-direction: column; gap: 6px; }
+.card-action { padding: 5px 10px; border: 1px solid var(--line); border-radius: 9px; color: var(--cream); background: transparent; font-size: 10px; font-weight: 650; white-space: nowrap; transition: border-color .16s ease, color .16s ease; }
+.card-action:hover:not(:disabled) { border-color: rgba(255,216,121,.5); color: var(--gold-bright); }
+.card-action:disabled { opacity: .45; }
 .demo-button { min-height: 38px; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: -8px; border: 1px dashed rgba(232,184,91,.32); border-radius: 12px; color: var(--gold-bright); background: rgba(232,184,91,.055); font-size: 10.5px; font-weight: 700; transition: background .16s ease, border-color .16s ease; }
 .demo-button:hover:not(:disabled) { background: rgba(232,184,91,.1); border-color: rgba(232,184,91,.5); }
 .project-stats { display: flex; justify-content: space-between; margin-top: -10px; padding: 0 3px; color: var(--cream-muted); font-size: 10px; }

@@ -206,6 +206,17 @@ test('assigns, restores, isolates tasks, and confirms a selected real-project su
     page = await electronApp.firstWindow();
     await expect(page.getByRole('button', { name: /graphletter/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /kalshi-mlb/i })).toBeVisible();
+
+    // Empty a lot: the repository leaves the village and returns when reassigned.
+    await electronApp.evaluate(({ dialog }) => {
+      const mutableDialog = dialog as unknown as { showMessageBox: () => Promise<{ response: number; checkboxChecked: boolean }> };
+      mutableDialog.showMessageBox = async () => ({ response: 0, checkboxChecked: false });
+    });
+    await page.getByRole('button', { name: /kalshi-mlb/i }).click();
+    await page.getByRole('button', { name: 'Empty this lot', exact: true }).click();
+    await expect(page.getByRole('button', { name: /02.*Empty lot/i })).toBeVisible();
+    await chooseRepository(electronApp, page, 1, kalshi);
+    await expect(page.getByRole('button', { name: /02.*kalshi-mlb/i })).toBeVisible();
   } finally {
     await electronApp.close();
   }

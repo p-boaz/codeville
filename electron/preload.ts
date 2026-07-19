@@ -11,6 +11,7 @@ import type {
 const bridge: CodevilleBridge = {
   getEnvironment: () => ipcRenderer.invoke('environment:get'),
   selectProject: (slot) => ipcRenderer.invoke('project:select', slot),
+  unassignProject: (slot) => ipcRenderer.invoke('project:unassign', slot),
   prepareDemoVillage: () => ipcRenderer.invoke('project:demo-village'),
   startSession: (input) => ipcRenderer.invoke('session:start', input),
   listSkills: (projectPath) => ipcRenderer.invoke('skills:list', projectPath),

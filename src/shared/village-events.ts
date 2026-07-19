@@ -251,6 +251,7 @@ export interface BatchLaunchProject {
 export interface CodevilleBridge {
   getEnvironment(): Promise<EnvironmentStatus>;
   selectProject(slot: VillageLot['slot']): Promise<ProjectSelection | null>;
+  unassignProject(slot: VillageLot['slot']): Promise<ProgressionData | null>;
   prepareDemoVillage(): Promise<ProjectSelection[]>;
   startSession(input: StartSessionInput): Promise<StartSessionResult>;
   listSkills(projectPath: string): Promise<SkillOption[]>;
@@ -272,7 +273,7 @@ export interface CodevilleBridge {
   keepSession(projectId: string): Promise<{ branch: string }>;
   discardSession(projectId: string): Promise<void>;
   getProgression(): Promise<ProgressionData>;
-  resetProgression(): Promise<ProgressionData>;
+  resetProgression(): Promise<ProgressionData | null>;
   onVillageEvent(listener: (event: ProjectVillageEvent) => void): () => void;
   onApprovalRequest(listener: (request: ApprovalRequestView | null) => void): () => void;
   onInputRequest(listener: (update: InputRequestUpdate) => void): () => void;

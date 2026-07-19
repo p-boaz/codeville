@@ -380,7 +380,21 @@ function registerIpc(): void {
     if (!(await stat(path)).isDirectory()) throw new Error('Choose a repository directory');
     try { await access(join(path, '.git')); }
     catch { throw new Error('Choose a Git repository. Codeville will not initialize or modify repository metadata.'); }
-    const occupied = (await store.read()).lots.find((lot) => lot.path === path && lot.slot !== slot);
+    const lots = (await store.read()).lots;
+    const occupant = lots[slot];
+    if (occupant.projectId && occupant.path !== path) {
+      const pending = await scaffolds.forProject(occupant.projectId);
+      const { response } = await dialog.showMessageBox(window!, {
+        type: 'question',
+        buttons: ['Replace it', 'Cancel'],
+        defaultId: 0,
+        cancelId: 1,
+        message: `Lot ${slot + 1} currently hosts ${occupant.name}.`,
+        detail: `${occupant.name} leaves the village but keeps its levels and ledger — they return if you assign it again.${pending ? ` It also has an uninspected improvement, which stays hidden until ${occupant.name} returns.` : ''}`,
+      });
+      if (response !== 0) return null;
+    }
+    const occupied = lots.find((lot) => lot.path === path && lot.slot !== slot);
     if (occupied) {
       const { response } = await dialog.showMessageBox(window!, {
         type: 'question',
@@ -388,16 +402,43 @@ function registerIpc(): void {
         defaultId: 0,
         cancelId: 2,
         message: `${basename(path)} is already assigned to lot ${occupied.slot + 1}.`,
-        detail: 'Move keeps its identity, levels, and ledger. A second workshop runs another builder on the same repository in parallel — each session works in its own isolated scaffold, and improvements land one at a time.',
+        detail: `Move keeps its identity, levels, and ledger, and leaves lot ${occupied.slot + 1} empty. A second workshop runs another builder on the same repository in parallel — each session works in its own isolated scaffold, and improvements land one at a time.`,
       });
       if (response === 2) return null;
       if (response === 1) return store.assignProject({ path, name: basename(path), slot, isDemo: false, secondWorkshop: true });
     }
     return store.assignProject({ path, name: basename(path), slot, isDemo: false });
   });
+  ipcMain.handle('project:unassign', async (_event, slot: VillageLot['slot']) => {
+    const lot = (await store.read()).lots[slot];
+    if (!lot.projectId) return null;
+    if (runtimes.hasProject(lot.projectId)) throw new Error('Stop the active builder before emptying this lot');
+    const pending = await scaffolds.forProject(lot.projectId);
+    const { response } = await dialog.showMessageBox(window!, {
+      type: 'question',
+      buttons: ['Empty this lot', 'Cancel'],
+      defaultId: 1,
+      cancelId: 1,
+      message: `Empty lot ${slot + 1}?`,
+      detail: `${lot.name} keeps its levels and ledger — they return if you assign it again.${pending ? ` It has an uninspected improvement, which stays hidden until ${lot.name} returns.` : ''}`,
+    });
+    if (response !== 0) return null;
+    return store.clearLot(slot);
+  });
   ipcMain.handle('project:demo-village', prepareDemoVillage);
   ipcMain.handle('progression:get', () => store.read());
-  ipcMain.handle('progression:reset', () => store.reset());
+  ipcMain.handle('progression:reset', async () => {
+    const { response } = await dialog.showMessageBox(window!, {
+      type: 'warning',
+      buttons: ['Reset the village', 'Cancel'],
+      defaultId: 1,
+      cancelId: 1,
+      message: 'Reset the whole village?',
+      detail: 'Every lot, level, ledger, and work order is cleared. Repositories on disk are not touched.',
+    });
+    if (response !== 0) return null;
+    return store.reset();
+  });
   ipcMain.handle('session:start', async (_event, input: StartSessionInput) => {
     if (runtimes.hasProject(input.projectId)) throw new Error('This project already has an active builder');
     if (!input.projectPath || !input.task.trim()) throw new Error('Choose a project and enter a task');

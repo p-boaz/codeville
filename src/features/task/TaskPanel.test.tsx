@@ -40,6 +40,8 @@ describe('TaskPanel', () => {
         error={null}
         onTaskChange={vi.fn()}
         onChooseProject={vi.fn()}
+        onEmptyLot={vi.fn()}
+        hasDemoLots={false}
         onUseDemoVillage={vi.fn()}
         onStart={vi.fn()}
         onInterrupt={vi.fn()}
@@ -74,7 +76,7 @@ describe('TaskPanel', () => {
         equippedSkills={['repo-helper']}
         onToggleSkill={onToggleSkill}
         proof={null} handoffNotice={null} error={null}
-        onTaskChange={vi.fn()} onChooseProject={vi.fn()} onUseDemoVillage={vi.fn()} onStart={vi.fn()} onInterrupt={vi.fn()}
+        onTaskChange={vi.fn()} onChooseProject={vi.fn()} onEmptyLot={vi.fn()} hasDemoLots={false} onUseDemoVillage={vi.fn()} onStart={vi.fn()} onInterrupt={vi.fn()}
         onSubmitInput={vi.fn()} onHandoff={vi.fn()} onReclaim={vi.fn()} onNewTask={vi.fn()} onResetVillage={vi.fn()}
       />,
     );
@@ -87,6 +89,31 @@ describe('TaskPanel', () => {
     expect(onToggleSkill).toHaveBeenCalledWith('house-style');
   });
 
+  it('offers labeled change and empty-lot actions and scopes the reset label to real villages', () => {
+    const onEmptyLot = vi.fn();
+    render(
+      <TaskPanel
+        environment={{ codexAvailable: true, codexVersion: 'codex-cli 0.144.4', model: 'gpt-5.6-sol', platform: 'darwin' }}
+        project={{ projectId: 'project-1', path: '/safe/acorn', name: 'Acorn', slot: 0, isDemo: false }}
+        task="" session={initialSessionState} sessionActive={false} progress={null}
+        pendingInput={null} inputSubmitting={false} inputError={null}
+        pendingScaffold={null} sessionDiff={null} landingBusy={false} landingError={null}
+        onLoadDiff={vi.fn()} onCloseDiff={vi.fn()} onApply={vi.fn()} onKeep={vi.fn()} onDiscard={vi.fn()}
+        onAddOrder={vi.fn()} onDeleteOrder={vi.fn()} onStartNextOrder={vi.fn()}
+        onSteer={vi.fn()} onOpenScaffold={vi.fn()} onRefresh={vi.fn()}
+        skillOptions={[]} equippedSkills={[]} onToggleSkill={vi.fn()}
+        proof={null} handoffNotice={null} error={null}
+        onTaskChange={vi.fn()} onChooseProject={vi.fn()} onEmptyLot={onEmptyLot} hasDemoLots={false} onUseDemoVillage={vi.fn()} onStart={vi.fn()} onInterrupt={vi.fn()}
+        onSubmitInput={vi.fn()} onHandoff={vi.fn()} onReclaim={vi.fn()} onNewTask={vi.fn()} onResetVillage={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Change repository' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Empty this lot' }));
+    expect(onEmptyLot).toHaveBeenCalledOnce();
+    expect(screen.getByRole('button', { name: 'Reset village…' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Reset demo village' })).toBeNull();
+  });
+
   it('shows metadata proof and disables Ghostty handoff while a turn is active', () => {
     render(<TaskPanel
       environment={{ codexAvailable: true, codexVersion: 'codex-cli 0.144.4', model: 'gpt-5.6-sol', platform: 'darwin' }}
@@ -95,7 +122,7 @@ describe('TaskPanel', () => {
       progress={{ projectId: 'project-1', repositoryPath: '/safe/acorn', repositoryName: 'Acorn', isDemo: true, level: 0, completedSessions: 0, lastCompletedAt: null, lastDebrief: null, lastThreadId: 'thread-1', conversationStatus: 'idle', pendingInput: null, handoffAt: null, safeEventCount: 4, lastTurnStartedAt: null, history: [], queue: [] }}
       pendingInput={null} inputSubmitting={false} inputError={null} pendingScaffold={null} sessionDiff={null} landingBusy={false} landingError={null} onLoadDiff={vi.fn()} onCloseDiff={vi.fn()} onApply={vi.fn()} onKeep={vi.fn()} onDiscard={vi.fn()} onAddOrder={vi.fn()} onDeleteOrder={vi.fn()} onStartNextOrder={vi.fn()} onSteer={vi.fn()} onOpenScaffold={vi.fn()} onRefresh={vi.fn()} skillOptions={[]} equippedSkills={[]} onToggleSkill={vi.fn()} handoffNotice={null} error={null}
       proof={{ connected: true, appServerPid: 123, codexVersion: 'codex-cli 0.144.4', model: 'gpt-5.6-sol', repositoryName: 'Acorn', repositoryPath: '/safe/acorn', threadId: 'thread-1', activeTurnId: 'turn-1', safeEventCount: 4, connectedAt: null, turnStartedAt: null }}
-      onTaskChange={vi.fn()} onChooseProject={vi.fn()} onUseDemoVillage={vi.fn()} onStart={vi.fn()} onInterrupt={vi.fn()} onSubmitInput={vi.fn()} onHandoff={vi.fn()} onReclaim={vi.fn()} onNewTask={vi.fn()} onResetVillage={vi.fn()}
+      onTaskChange={vi.fn()} onChooseProject={vi.fn()} onEmptyLot={vi.fn()} hasDemoLots onUseDemoVillage={vi.fn()} onStart={vi.fn()} onInterrupt={vi.fn()} onSubmitInput={vi.fn()} onHandoff={vi.fn()} onReclaim={vi.fn()} onNewTask={vi.fn()} onResetVillage={vi.fn()}
     />);
     expect(screen.getByText('Codex connection proof')).toBeVisible();
     expect(screen.getByRole('button', { name: /continue in ghostty/i })).toBeDisabled();

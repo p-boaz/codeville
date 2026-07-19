@@ -228,6 +228,17 @@ export class ProgressionStore {
     return this.updateConversation(projectId, { conversationStatus: 'idle', pendingInput: null, handoffAt: null });
   }
 
+  async clearLot(slot: VillageLot['slot']): Promise<ProgressionData> {
+    return this.enqueueMutation(async () => {
+      const data = await this.readNow();
+      // The project record stays behind so its levels and ledger return
+      // if the repository is assigned again later.
+      data.lots[slot] = { slot, projectId: null, path: null, name: null, isDemo: false };
+      await this.write(data);
+      return data;
+    });
+  }
+
   async reset(): Promise<ProgressionData> {
     return this.enqueueMutation(async () => {
       const data = emptyProgression();

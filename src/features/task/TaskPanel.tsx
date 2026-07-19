@@ -39,6 +39,8 @@ interface TaskPanelProps {
   error: string | null;
   onTaskChange(task: string): void;
   onChooseProject(): void;
+  onEmptyLot(): void;
+  hasDemoLots: boolean;
   onUseDemoVillage(): void;
   onStart(): void;
   onInterrupt(): void;
@@ -100,6 +102,8 @@ export function TaskPanel({
   error,
   onTaskChange,
   onChooseProject,
+  onEmptyLot,
+  hasDemoLots,
   onUseDemoVillage,
   onStart,
   onInterrupt,
@@ -124,9 +128,16 @@ export function TaskPanel({
           <strong>{project?.name ?? 'No project selected'}</strong>
           <span>{project ? 'Local repository selected' : 'Choose a local repository'}</span>
         </div>
-        <button className="icon-button" onClick={onChooseProject} disabled={sessionActive} aria-label="Choose repository">
-          ↗
-        </button>
+        <div className="card-actions">
+          <button className="card-action" onClick={onChooseProject} disabled={sessionActive} aria-label={project ? 'Change repository' : 'Choose repository'}>
+            {project ? 'Change…' : 'Choose…'}
+          </button>
+          {project && (
+            <button className="card-action" onClick={onEmptyLot} disabled={sessionActive} aria-label="Empty this lot">
+              Empty lot
+            </button>
+          )}
+        </div>
       </section>
       {!project && !sessionActive && (
         <button className="demo-button" onClick={onUseDemoVillage}>
@@ -271,7 +282,7 @@ export function TaskPanel({
             <span aria-hidden="true">→</span>
           </button>
         )}
-        <button className="text-button" onClick={onResetVillage} disabled={sessionActive || session.phase === 'external'}>Reset demo village</button>
+        <button className="text-button" onClick={onResetVillage} disabled={sessionActive || session.phase === 'external'}>{hasDemoLots ? 'Reset demo village' : 'Reset village…'}</button>
       </div>
     </aside>
   );
