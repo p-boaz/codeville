@@ -161,6 +161,9 @@ async function announceDiffReady(runtime: ProjectRuntime): Promise<void> {
     await scaffolds.checkpoint(record);
     const stats = await scaffolds.diffStats(record);
     if (stats.filesChanged === 0) {
+      // Ledger before discard: failed/interrupted sessions with no work must
+      // not vanish without a trace (dedupe guard skips already-ledgered ones).
+      await store.recordAbandonedSession(projectId, record.sessionId, runtime.turnStartedAt ?? record.createdAt, new Date().toISOString());
       await scaffolds.discard(record);
       return;
     }
