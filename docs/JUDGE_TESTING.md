@@ -16,12 +16,13 @@ To run a smaller proof, select one project and click **Start building** instead.
 
 ## Using real repositories
 
-1. Select an **Empty lot**, click **Choose repository**, and select an existing Git repository such as `graphletter`.
+1. Select an **Empty lot**, click **Choose…**, and select an existing Git repository such as `graphletter`. An occupied lot's card offers **Change…** (swap the repository — a dialog explains that the departing project keeps its levels and returns if reassigned) and **Empty lot** (vacate it the same way).
 2. Enter that repository's task at the Foreman's Desk. Repeat in another lot for `kalshi-mlb` or another repository; switching cards preserves each draft independently for the current app session.
 3. For one repository, select its card and click **Start building**.
 4. For several, check only the desired real-project cards and click **Start selected builders**.
 5. Review the prominent preflight. It lists every exact repository basename, full local path, and task. Click **Cancel** to prove nothing launches, or **Confirm and start builders** to authorize the listed sessions.
-6. Approval, failure, interruption, and completion remain project-scoped; selecting another card does not pause siblings.
+6. Approval, failure, interruption, and completion remain project-scoped; selecting another card does not pause siblings. The **Village feed** on the desk shows every builder in one stream, newest first — each row names its repository and task and says specifically what happened ("Editing health.js · README.md", "Running pnpm test", "Tests passed").
+6b. While a builder works, expand **Redirect builder** and send a course correction — the turn keeps running with the new direction folded in, and the feed shows **New direction sent**.
 7. In the deterministic fixture, answer the native multi-question card, verify the secret field is masked, and observe a sibling complete while another project waits.
 8. Relaunch during terminal waiting, reply from the restored card, and expand **Codex connection proof** to verify the same thread ID and safe metadata.
 9. **Continue in Ghostty** is disabled during active work. After the turn stops, confirm handoff, then confirm the CLI session is closed before **Return control to Codeville**.
@@ -57,4 +58,4 @@ CODEVILLE_REAL_E2E_CONFIG='[{"path":"/absolute/path/graphletter","task":"Approve
 - **Model access error:** verify the account can start a `gpt-5.6-sol` Codex session.
 - **Unsigned app warning:** use Control-click → Open. The complete source path remains available.
 - **One builder pauses:** select its project card to see the exact error or approval request. Other projects continue independently.
-- **Repeat the demo:** **Reset demo village** clears Codeville progression; **Create demo village** provisions fresh fixture copies.
+- **Repeat the demo:** **Reset demo village** (labeled **Reset village…** when no demo lots exist) asks for confirmation, then clears Codeville progression; **Create demo village** provisions fresh fixture copies.
