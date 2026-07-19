@@ -118,10 +118,24 @@ export function parseRawCompletionAccount(text: string | null | undefined): RawC
 }
 
 /**
+ * Wall-projected surfaces (the canvas debrief bubble) keep the strict
+ * pre-relaxation rule: no paths, no dotted identifiers. The desk may be
+ * specific; the wall stays phases-and-counts safe.
+ */
+export function wallSafeText(value: string): string | null {
+  const normalized = sanitizeSafeText(value, 96);
+  if (!normalized) return null;
+  if (/[/\\]/.test(normalized)) return null;
+  if (/\b[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+\b/.test(normalized)) return null;
+  return normalized;
+}
+
+/**
  * Desk-register sanitizer: longer bound, and dotted or path-like tokens are
  * allowed only when they name a file the session actually changed (verified
- * against the scaffold diffstat). Everything else keeps the strict rules —
- * verified identifiers are information, unverifiable ones are noise or leaks.
+ * against the scaffold diffstat). Numeric tokens and prose abbreviations are
+ * not file claims; an unverified path-like claim is redacted, not fatal —
+ * the rest of the account is still the operator's best explanation.
  */
 export function sanitizeDeskAccountText(value: string, changedPaths: string[]): string | null {
   const normalized = value.replace(/\s+/g, ' ').trim();
@@ -131,11 +145,14 @@ export function sanitizeDeskAccountText(value: string, changedPaths: string[]): 
   if (/\b(?:const|let|var|function|class|import|export|SELECT|INSERT|DELETE|UPDATE)\b|=>|;\s*$/i.test(normalized)) return null;
   if (/[\\`$<>{}|[\]]/.test(normalized)) return null;
   const verified = new Set(changedPaths.flatMap((path) => [path, path.split('/').at(-1) ?? path]));
+  let account = normalized;
   for (const match of normalized.matchAll(/[\w$/.-]*[\w$][./][\w$/.-]+/g)) {
     const token = match[0].replace(/[.,;:!?]+$/, '');
-    if (!verified.has(token)) return null;
+    if (verified.has(token)) continue;
+    if (/^[\d.]+[a-z]*$/i.test(token) || /^(?:e\.g|i\.e|etc|vs|no)\.?$/i.test(token)) continue;
+    account = account.replaceAll(token, '[unverified]');
   }
-  return normalized;
+  return account;
 }
 
 export function resumablePendingInput(): SafePendingInput {

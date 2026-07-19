@@ -166,6 +166,19 @@ describe('ProgressionStore', () => {
     await expect(store.addWorkOrder(project.projectId, '   ')).rejects.toThrow(/Describe the work order/);
   });
 
+  it('moves exactly the named twin when an explicit projectId is provided', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'codeville-move-twin-'));
+    const store = new ProgressionStore(directory);
+    const main = await store.assignProject({ path: '/projects/shared', name: 'shared', slot: 3, isDemo: false });
+    const twin = await store.assignProject({ path: '/projects/shared', name: 'shared', slot: 1, isDemo: false, secondWorkshop: true });
+    const moved = await store.assignProject({ path: '/projects/shared', name: 'shared', slot: 4, isDemo: false, projectId: twin.projectId });
+    const value = await store.read();
+    expect(moved.projectId).toBe(twin.projectId);
+    expect(value.lots[1].projectId).toBeNull();
+    expect(value.lots[3].projectId).toBe(main.projectId);
+    expect(value.lots[4].projectId).toBe(twin.projectId);
+  });
+
   it('empties a lot while keeping the detached progression for a later return', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'codeville-clear-lot-'));
     const store = new ProgressionStore(directory);

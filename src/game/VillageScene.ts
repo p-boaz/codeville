@@ -1,5 +1,6 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 
+import { wallSafeText } from '../codex/debrief';
 import type { CompletionDebrief, VillageLot } from '../shared/village-events';
 import type { SessionPhase } from '../state/session-machine';
 import { BuilderActor } from './BuilderActor';
@@ -254,7 +255,9 @@ class ProjectLot {
   private readonly chipBackground = new Graphics();
   private readonly statusText: Text;
   private readonly bubble = new Container();
+  private readonly bubbleBackground = new Graphics();
   private readonly bubbleText: Text;
+  private currentBubble = '';
   private readonly actor: BuilderActor;
   private readonly lantern = new Container();
   private readonly pennant = new Graphics();
@@ -283,13 +286,10 @@ class ProjectLot {
     this.statusText.position.set(0, 123);
     this.actor = new BuilderActor(actorColor);
     this.actor.container.visible = false;
-    const bubbleBackground = new Graphics().roundRect(-110, -70, 220, 66, 13).fill({ color: palette.cream, alpha: 0.97 }).stroke({ color: 0xe4bd68, width: 1.5 });
-    bubbleBackground.poly([12, -5, 27, 8, 32, -5]).fill(palette.cream);
-    this.bubbleText = new Text({ text: '', style: new TextStyle({ fontFamily: 'ui-sans-serif, system-ui', fontSize: 8, fontWeight: '600', fill: palette.ink, wordWrap: true, wordWrapWidth: 200, lineHeight: 11 }) });
+    this.bubbleText = new Text({ text: '', style: new TextStyle({ fontFamily: 'ui-sans-serif, system-ui', fontSize: 13, fontWeight: '600', fill: palette.ink, wordWrap: true, wordWrapWidth: 250, lineHeight: 18 }) });
     this.bubbleText.anchor.set(0.5);
-    this.bubbleText.position.set(0, -38);
-    this.bubble.addChild(bubbleBackground, this.bubbleText);
-    this.bubble.position.set(0, -78);
+    this.bubble.addChild(this.bubbleBackground, this.bubbleText);
+    this.bubble.position.set(0, -88);
     this.bubble.visible = false;
     const lanternGlow = new Graphics().circle(0, 0, 13).fill({ color: 0xffd875, alpha: 0.35 });
     const lanternBody = new Graphics();
@@ -351,7 +351,20 @@ class ProjectLot {
       this.currentSignature = signature;
     }
     if (snapshot.debrief && snapshot.phase === 'completed') {
-      this.bubbleText.text = `${trim(snapshot.debrief.landed, 82)}\n${snapshot.debrief.followUpRecommended ? '↗ Follow-up recommended' : '✓ No follow-up needed'}`;
+      // The bubble is on the wall-projected surface: path-bearing debriefs stay on the desk.
+      const landed = wallSafeText(snapshot.debrief.landed) ?? 'Improvement complete.';
+      const message = `${trim(landed, 82)}\n${snapshot.debrief.followUpRecommended ? '↗ Follow-up recommended' : '✓ No follow-up needed'}`;
+      if (message !== this.currentBubble) {
+        this.currentBubble = message;
+        this.bubbleText.text = message;
+        // Size the bubble to its text so short debriefs stay compact.
+        const width = Math.max(this.bubbleText.width + 36, 150);
+        const height = this.bubbleText.height + 28;
+        this.bubbleText.position.set(0, -height / 2);
+        this.bubbleBackground.clear();
+        this.bubbleBackground.roundRect(-width / 2, -height, width, height, 15).fill({ color: palette.cream, alpha: 0.97 }).stroke({ color: 0xe4bd68, width: 2 });
+        this.bubbleBackground.poly([12, -2, 28, 14, 36, -2]).fill(palette.cream);
+      }
       this.bubble.visible = true;
     } else this.bubble.visible = false;
   }

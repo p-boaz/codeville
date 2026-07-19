@@ -145,8 +145,9 @@ export function App() {
       }
       if (['1', '2', '3', '4', '5'].includes(event.key)) {
         const slot = (Number(event.key) - 1) as VillageLot['slot'];
-        setSelectedSlot(slot);
-        setProgression((current) => { setSelectedProjectId(current.lots[slot].projectId); return current; });
+        // Same path as mouse selection — selectLot also clears the loaded diff
+        // so another project's patches never render under this lot's card.
+        setProgression((current) => { selectLot(slot, current.lots[slot].projectId); return current; });
       }
     }
     document.addEventListener('keydown', onKeyDown);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseCodevilleResult, parseRawCompletionAccount, sanitizeDebriefText, sanitizeDeskAccountText } from './debrief';
+import { parseCodevilleResult, parseRawCompletionAccount, sanitizeDebriefText, sanitizeDeskAccountText, wallSafeText } from './debrief';
 
 describe('CODEVILLE_RESULT privacy boundary', () => {
   it('extracts a validated completed result', () => {
@@ -37,6 +37,12 @@ describe('CODEVILLE_RESULT privacy boundary', () => {
     expect(sanitizeDebriefText(value)).toBeNull();
   });
 
+  it('keeps the wall register strict: path-bearing debriefs never reach the bubble', () => {
+    expect(wallSafeText('Tightened retry logic in src/kalshi/strategy.ts')).toBeNull();
+    expect(wallSafeText('Renamed health.js counting rules')).toBeNull();
+    expect(wallSafeText('Health summary now passes every check.')).toBe('Health summary now passes every check.');
+  });
+
   it.each([
     'ordinary final answer',
     'CODEVILLE_RESULT: nope',
@@ -66,8 +72,16 @@ describe('desk-register account', () => {
     expect(sanitizeDeskAccountText('Implemented summarizeProject in src/health.js and updated package.json.', changed))
       .toBe('Implemented summarizeProject in src/health.js and updated package.json.');
     expect(sanitizeDeskAccountText('Implemented health.js counting rules.', changed)).toBe('Implemented health.js counting rules.');
-    expect(sanitizeDeskAccountText('Also touched secrets.env for you.', changed)).toBeNull();
-    expect(sanitizeDeskAccountText('Edited /etc/passwd entries.', changed)).toBeNull();
+    expect(sanitizeDeskAccountText('Also touched secrets.env for you.', changed)).toBe('Also touched [unverified] for you.');
+    expect(sanitizeDeskAccountText('Edited /etc/passwd entries.', changed)).toBe('Edited [unverified] entries.');
+  });
+
+  it('does not treat numbers or prose abbreviations as file claims', () => {
+    const changed = ['src/config.ts'];
+    expect(sanitizeDeskAccountText('Bumped the retry limit to 3.5s in config.ts.', changed))
+      .toBe('Bumped the retry limit to 3.5s in config.ts.');
+    expect(sanitizeDeskAccountText('Simplified checks, e.g. the empty case.', changed))
+      .toBe('Simplified checks, e.g. the empty case.');
   });
 
   it.each([

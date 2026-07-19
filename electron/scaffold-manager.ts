@@ -116,7 +116,7 @@ export class ScaffoldManager {
       stats.filesChanged += 1;
       stats.insertions += match[1] === '-' ? 0 : Number(match[1]);
       stats.deletions += match[2] === '-' ? 0 : Number(match[2]);
-      stats.changedPaths.push(match[3]);
+      stats.changedPaths.push(renamedPath(match[3]));
     }
     return stats;
   }
@@ -304,6 +304,14 @@ export class ScaffoldManager {
       throw new ScaffoldError('This repository has no commits yet. Make an initial commit, then start a builder.');
     }
   }
+}
+
+/** git numstat prints renames as 'dir/{old.ts => new.ts}' or 'old.ts => new.ts'; keep the post-rename path so pathspecs and collision checks stay real. */
+export function renamedPath(raw: string): string {
+  if (!raw.includes(' => ')) return raw;
+  const braced = raw.match(/^(.*)\{(.*) => (.*)\}(.*)$/);
+  if (braced) return `${braced[1]}${braced[3]}${braced[4]}`;
+  return raw.split(' => ').at(-1) ?? raw;
 }
 
 async function git(cwd: string, args: string[]): Promise<{ stdout: string }> {

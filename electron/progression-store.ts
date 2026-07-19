@@ -62,7 +62,9 @@ export class ProgressionStore {
     // repository: its own builder, scaffold, ledger, and levels.
     const assignedTwins = data.lots.filter((lot) => lot.path === selection.path && lot.slot !== selection.slot).length;
     const existing = selection.secondWorkshop ? undefined : Object.values(data.projects).find((project) => project.repositoryPath === selection.path);
-    const projectId = existing?.projectId ?? selection.projectId ?? randomUUID();
+    // An explicit projectId (a Move naming a specific lot's occupant) wins over
+    // the first-match path lookup, which is ambiguous once second workshops exist.
+    const projectId = selection.projectId ?? existing?.projectId ?? randomUUID();
     const name = selection.secondWorkshop && assignedTwins > 0 ? `${selection.name} · ${assignedTwins + 1}` : selection.name;
     for (const lot of data.lots) {
       if (lot.projectId === projectId) Object.assign(lot, { projectId: null, path: null, name: null, isDemo: false });

@@ -9,7 +9,7 @@ Codeville has two registers with one contract.
 The **village stream** (the wall-safe register) receives only project-scoped typed envelopes containing:
 
 - session lifecycle and planning/reading/editing phases
-- command category (test, build, lint, other) plus the command line itself (truncated, for the desk feed — never its output or working directory)
+- command category (test, build, lint, other) plus the command line itself (truncated, screened for secret- and URL-shaped content, for the desk feed — never its output or working directory)
 - names of files read or edited and search query text (amended 2026-07-18: the desk feed favors specificity; diffs and file contents still never cross)
 - approval-needed category and explicit local approval details
 - tests passed/failed

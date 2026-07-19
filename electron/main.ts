@@ -406,6 +406,9 @@ function registerIpc(): void {
       });
       if (response === 2) return null;
       if (response === 1) return store.assignProject({ path, name: basename(path), slot, isDemo: false, secondWorkshop: true });
+      // Move exactly the project on the lot the dialog named — with second
+      // workshops, a path lookup could resolve a different twin.
+      return store.assignProject({ path, name: basename(path), slot, isDemo: false, projectId: occupied.projectId ?? undefined });
     }
     return store.assignProject({ path, name: basename(path), slot, isDemo: false });
   });
@@ -437,6 +440,14 @@ function registerIpc(): void {
       detail: 'Every lot, level, ledger, and work order is cleared. Repositories on disk are not touched.',
     });
     if (response !== 0) return null;
+    // Reset must not strand scaffolds: re-assignment mints new projectIds, so
+    // surviving worktrees, codeville/* branches, and sealed records would be
+    // unreachable forever (and keep the dock badge counting phantom decisions).
+    for (const record of await scaffolds.listOrphans(new Set())) {
+      if (runtimes.hasProject(record.projectId)) continue;
+      try { await scaffolds.discard(record); }
+      catch (cause) { console.warn(`[scaffold] reset cleanup failed for ${record.sessionId}: ${cause instanceof Error ? cause.message : String(cause)}`); }
+    }
     return store.reset();
   });
   ipcMain.handle('session:start', async (_event, input: StartSessionInput) => {
@@ -516,9 +527,10 @@ function registerIpc(): void {
     let runtime = runtimes.forProject(projectId);
     if (runtime?.turnId) throw new Error('This project already has an active turn');
     if (!runtime) {
-      const scaffold = await scaffolds.forProject(projectId);
-      const resumed = await appServer.resumeThread(progress.lastThreadId, scaffold?.scaffoldPath ?? progress.repositoryPath, model);
-      runtime = { projectId, threadId: progress.lastThreadId, turnId: null, lastAgentMessage: null, safeEventCount: progress.safeEventCount, turnStartedAt: null, sessionId: scaffold?.sessionId ?? null };
+      // Never resume into the real checkout: a conversation without a scaffold gets a fresh one.
+      const scaffold = (await scaffolds.forProject(projectId)) ?? (await scaffolds.create(progress.repositoryPath, projectId, randomUUID()));
+      const resumed = await appServer.resumeThread(progress.lastThreadId, scaffold.scaffoldPath, model);
+      runtime = { projectId, threadId: progress.lastThreadId, turnId: null, lastAgentMessage: null, safeEventCount: progress.safeEventCount, turnStartedAt: null, sessionId: scaffold.sessionId };
       runtimes.add(runtime);
       if (resumed.thread.id !== progress.lastThreadId) throw new Error('Codex resumed an unexpected thread');
     }
@@ -635,8 +647,9 @@ function registerIpc(): void {
     if (runtimes.forProject(projectId)?.turnId) throw new Error('The builder is still working. Wait for the turn to finish before applying.');
     const record = await requireScaffold(projectId);
     await scaffolds.checkpoint(record);
-    const progress = (await store.read()).projects[projectId];
-    const summary = progress?.lastDebrief?.landed ?? 'Codeville improvement';
+    // The commit subject must describe THIS session's work: the scaffold's own
+    // verified desk account, never the project's last (possibly stale) debrief.
+    const summary = record.outcome?.deskLanded ?? 'Codeville improvement';
     const result = await scaffolds.apply(record, `${summary}\n\nCodeville session ${record.sessionId}`);
     await scaffolds.discard(record);
     await store.recordLanding(projectId, record.sessionId, 'applied');
@@ -674,9 +687,10 @@ function registerIpc(): void {
     if (!progress?.lastThreadId || progress.conversationStatus !== 'external') throw new Error('This conversation is not owned by Ghostty');
     if (runtimes.hasProject(projectId)) throw new Error('Codeville already owns this conversation');
     const appServer = await ensureClient();
-    const scaffold = await scaffolds.forProject(projectId);
-    await appServer.resumeThread(progress.lastThreadId, scaffold?.scaffoldPath ?? progress.repositoryPath, model);
-    runtimes.add({ projectId, threadId: progress.lastThreadId, turnId: null, lastAgentMessage: null, safeEventCount: progress.safeEventCount, turnStartedAt: progress.lastTurnStartedAt, sessionId: scaffold?.sessionId ?? null });
+    // Never resume into the real checkout: a conversation without a scaffold gets a fresh one.
+    const scaffold = (await scaffolds.forProject(projectId)) ?? (await scaffolds.create(progress.repositoryPath, projectId, randomUUID()));
+    await appServer.resumeThread(progress.lastThreadId, scaffold.scaffoldPath, model);
+    runtimes.add({ projectId, threadId: progress.lastThreadId, turnId: null, lastAgentMessage: null, safeEventCount: progress.safeEventCount, turnStartedAt: progress.lastTurnStartedAt, sessionId: scaffold.sessionId });
     await store.recordReclaimed(projectId);
   });
 }
@@ -687,11 +701,15 @@ function shellQuote(value: string): string {
 
 /** Quit-during-finalize leaves scaffolds behind: seal work that exists, discard provably-empty ones. */
 async function reconcileOrphanScaffolds(): Promise<void> {
+  const projects = (await store.read()).projects;
   for (const record of await scaffolds.listOrphans(new Set())) {
     try {
       await scaffolds.checkpoint(record);
       const stats = await scaffolds.diffStats(record);
-      if (stats.filesChanged === 0) await scaffolds.discard(record);
+      // An empty scaffold whose project still waits for a reply hosts a live
+      // conversation — keep it so the resumed turn stays isolated from the checkout.
+      const waiting = projects[record.projectId]?.conversationStatus === 'waiting';
+      if (stats.filesChanged === 0 && !waiting) await scaffolds.discard(record);
     } catch (cause) {
       console.warn(`[scaffold] orphan reconcile failed for ${record.sessionId}: ${cause instanceof Error ? cause.message : String(cause)}`);
     }

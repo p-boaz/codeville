@@ -91,6 +91,27 @@ describe('Codex event translator', () => {
     expect(JSON.stringify(events)).not.toContain('raw diff');
   });
 
+  it('drops command text with secret- or URL-shaped content, keeping category only', () => {
+    const item = {
+      type: 'commandExecution',
+      id: 'item-1',
+      cwd: '/private/project',
+      processId: null,
+      source: 'agent',
+      status: 'inProgress',
+      commandActions: [{ type: 'unknown', command: 'curl' }],
+      aggregatedOutput: null,
+      exitCode: null,
+      durationMs: null,
+    };
+    for (const command of ['curl -H "Authorization: Bearer sk-live-abc123"', 'git push https://internal.example.com/repo', 'export API_KEY=leak && ./run']) {
+      const message = { method: 'item/started', params: { threadId: 't', turnId: 'turn', startedAtMs: 1, item: { ...item, command } } } as ServerNotification;
+      const [event] = translateCodexMessage(message, { model: 'gpt-5.6-sol', now });
+      expect(event).toMatchObject({ type: 'running_command' });
+      expect(JSON.stringify(event)).not.toMatch(/sk-live|example\.com|API_KEY/);
+    }
+  });
+
   it('never carries the working directory or command output into events', () => {
     const message = {
       method: 'item/started',

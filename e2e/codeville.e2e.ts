@@ -95,7 +95,9 @@ test('deterministic protocol: native input, stopped-turn continuation, review, r
       expect(entry.params?.cwd).toContain('scaffolds');
       expect(repositories).not.toContain(entry.params?.cwd);
     }
-    expect(protocol.some((entry) => entry.method === 'thread/resume' && entry.params?.threadId === waitingThread && entry.params?.sandbox === 'workspace-write' && entry.params?.approvalPolicy === 'on-request')).toBe(true);
+    // Resume must land in a scaffold even when relaunch reconciliation ran — never the real checkout.
+    expect(protocol.some((entry) => entry.method === 'thread/resume' && entry.params?.threadId === waitingThread && entry.params?.sandbox === 'workspace-write' && entry.params?.approvalPolicy === 'on-request' && String(entry.params?.cwd).includes('scaffolds'))).toBe(true);
+    expect(protocol.filter((entry) => entry.method === 'thread/resume').every((entry) => !repositories.includes(entry.params?.cwd))).toBe(true);
     expect(protocol.some((entry) => entry.method === 'turn/start' && entry.params?.threadId === waitingThread && entry.params?.input?.[0]?.text === 'Stable')).toBe(true);
     const siblingTurn = protocol.find((entry) => entry.method === 'turn/start' && entry.params?.input?.[0]?.text === 'fixture:complete sibling');
     expect(siblingTurn?.params.input.some((item: { type: string; name?: string }) => item.type === 'skill' && item.name === 'repo-helper')).toBe(true);

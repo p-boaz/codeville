@@ -6,9 +6,18 @@ import { promisify } from 'node:util';
 
 import { describe, expect, it } from 'vitest';
 
-import { ScaffoldError, ScaffoldManager, type ScaffoldRecord } from './scaffold-manager';
+import { renamedPath, ScaffoldError, ScaffoldManager, type ScaffoldRecord } from './scaffold-manager';
 
 const executeFile = promisify(execFile);
+
+describe('renamedPath', () => {
+  it('normalizes git rename numstat paths to the post-rename path', () => {
+    expect(renamedPath('src/{old.ts => new.ts}')).toBe('src/new.ts');
+    expect(renamedPath('old.ts => new.ts')).toBe('new.ts');
+    expect(renamedPath('src/{a => b}/mod.ts')).toBe('src/b/mod.ts');
+    expect(renamedPath('plain/path.ts')).toBe('plain/path.ts');
+  });
+});
 
 async function git(cwd: string, args: string[]): Promise<string> {
   const { stdout } = await executeFile('git', args, { cwd });

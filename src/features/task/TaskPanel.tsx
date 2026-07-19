@@ -180,6 +180,7 @@ export function TaskPanel({
 
       {pendingScaffold && !sessionActive && !pendingInput && (
         <InspectionCard
+          key={pendingScaffold.branch}
           scaffold={pendingScaffold}
           diff={sessionDiff}
           busy={landingBusy}

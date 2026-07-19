@@ -58,7 +58,7 @@ function translateItemStarted(item: ThreadItem, at: string): VillageEvent[] {
           .filter((name): name is string => Boolean(name));
         return [{ type: 'reading', at, quantity: item.commandActions.length, detail: describeItems(named) }];
       }
-      return [{ type: 'running_command', at, category: categorizeCommand(item.command), command: truncate(item.command, 80) }];
+      return [{ type: 'running_command', at, category: categorizeCommand(item.command), command: safeCommandText(item.command) }];
     }
     default:
       return [];
@@ -82,6 +82,15 @@ function baseName(path: string): string {
 
 function truncate(value: string, max: number): string {
   return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+}
+
+// Command text reaches the desk feed; screen it for secret- and URL-shaped
+// content and fall back to the category-only event when it trips.
+function safeCommandText(command: string): string | undefined {
+  const flattened = command.replace(/\s+/g, ' ').trim();
+  if (/https?:|www\.|\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/i.test(flattened)) return undefined;
+  if (/\b(sk-[a-z0-9_-]+|api[_-]?key|secret|token|password|bearer|authorization)\b/i.test(flattened)) return undefined;
+  return truncate(flattened, 80);
 }
 
 // Desk-feed detail line: up to three named items, then a remainder count.
