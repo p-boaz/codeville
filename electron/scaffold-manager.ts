@@ -31,6 +31,7 @@ export interface ScaffoldDiffStats {
   insertions: number;
   deletions: number;
   changedPaths: string[];
+  files: { path: string; insertions: number; deletions: number }[];
 }
 
 export interface ScaffoldFileDiff {
@@ -109,34 +110,30 @@ export class ScaffoldManager {
 
   async diffStats(record: ScaffoldRecord): Promise<ScaffoldDiffStats> {
     const { stdout } = await git(record.scaffoldPath, ['diff', '--numstat', `${record.baseCommit}..HEAD`]);
-    const stats: ScaffoldDiffStats = { filesChanged: 0, insertions: 0, deletions: 0, changedPaths: [] };
+    const stats: ScaffoldDiffStats = { filesChanged: 0, insertions: 0, deletions: 0, changedPaths: [], files: [] };
     for (const line of stdout.split('\n')) {
       const match = line.match(/^(\d+|-)\t(\d+|-)\t(.+)$/);
       if (!match) continue;
+      const insertions = match[1] === '-' ? 0 : Number(match[1]);
+      const deletions = match[2] === '-' ? 0 : Number(match[2]);
       stats.filesChanged += 1;
-      stats.insertions += match[1] === '-' ? 0 : Number(match[1]);
-      stats.deletions += match[2] === '-' ? 0 : Number(match[2]);
-      stats.changedPaths.push(renamedPath(match[3]));
+      stats.insertions += insertions;
+      stats.deletions += deletions;
+      const path = renamedPath(match[3]);
+      stats.changedPaths.push(path);
+      stats.files.push({ path, insertions, deletions });
     }
     return stats;
   }
 
   /** Full per-file patches. Desk register only — must never reach the village event channel. */
   async diff(record: ScaffoldRecord): Promise<ScaffoldFileDiff[]> {
+    // One numstat covers every file's counts; one patch spawn per file is the floor.
     const stats = await this.diffStats(record);
     const files: ScaffoldFileDiff[] = [];
-    for (const path of stats.changedPaths) {
-      const [{ stdout: patch }, { stdout: numstat }] = await Promise.all([
-        git(record.scaffoldPath, ['diff', `${record.baseCommit}..HEAD`, '--', path]),
-        git(record.scaffoldPath, ['diff', '--numstat', `${record.baseCommit}..HEAD`, '--', path]),
-      ]);
-      const match = numstat.match(/^(\d+|-)\t(\d+|-)\t/);
-      files.push({
-        path,
-        insertions: match && match[1] !== '-' ? Number(match[1]) : 0,
-        deletions: match && match[2] !== '-' ? Number(match[2]) : 0,
-        patch,
-      });
+    for (const file of stats.files) {
+      const { stdout: patch } = await git(record.scaffoldPath, ['diff', `${record.baseCommit}..HEAD`, '--', file.path]);
+      files.push({ path: file.path, insertions: file.insertions, deletions: file.deletions, patch });
     }
     return files;
   }
