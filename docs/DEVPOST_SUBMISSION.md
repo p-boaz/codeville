@@ -41,7 +41,7 @@ Apple-silicon Mac plus authenticated Codex CLI with `gpt-5.6-sol` access. Unzip 
 ## Links to add
 
 - Public YouTube demo: `[ADD PUBLIC YOUTUBE URL]`
-- Code repository: `[ADD PUBLIC REPOSITORY URL]`
+- Code repository: https://github.com/p-boaz/codeville
 - Free macOS test build: `[ADD RELEASE URL OR DEVPOST FILE]`
 
 ## Required Codex session ID
