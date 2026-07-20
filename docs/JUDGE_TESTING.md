@@ -22,7 +22,7 @@ To run a smaller proof, select one project and click **Start building** instead.
 4. For several, check only the desired real-project cards and click **Start selected builders**.
 5. Review the prominent preflight. It lists every exact repository basename, full local path, and task. Click **Cancel** to prove nothing launches, or **Confirm and start builders** to authorize the listed sessions.
 6. Approval, failure, interruption, and completion remain project-scoped; selecting another card does not pause siblings. The **Village feed** on the desk shows every builder in one stream, newest first — each row names its repository and task and says specifically what happened ("Editing health.js · README.md", "Running pnpm test", "Tests passed").
-6b. While a builder works, expand **Redirect builder** and send a course correction — the turn keeps running with the new direction folded in, and the feed shows **New direction sent**.
+6b. While a builder works, expand **Redirect builder** and send a course correction — the turn keeps running with the new direction folded in, and the feed echoes it back as **New direction — <your words>**.
 7. In the deterministic fixture, answer the native multi-question card, verify the secret field is masked, and observe a sibling complete while another project waits.
 8. Relaunch during terminal waiting, reply from the restored card, and expand **Codex connection proof** to verify the same thread ID and safe metadata.
 9. **Continue in Ghostty** is disabled during active work. After the turn stops, confirm handoff, then confirm the CLI session is closed before **Return control to Codeville**.
