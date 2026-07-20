@@ -470,6 +470,7 @@ export function App() {
   const snapshots = progression.lots.map((lot) => ({
     slot: lot.slot,
     projectId: lot.projectId,
+    repositoryPath: lot.path,
     projectName: lot.name ?? 'Unclaimed Workshop',
     phase: lot.projectId ? sessions[lot.projectId]?.phase ?? (progression.projects[lot.projectId]?.lastDebrief ? 'completed' : 'idle') : 'idle',
     level: lot.projectId ? progression.projects[lot.projectId]?.level ?? 0 : 0,

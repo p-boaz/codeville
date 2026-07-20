@@ -9,6 +9,8 @@ export interface ProjectSnapshot {
   slot: VillageLot['slot'];
   projectId: string | null;
   projectName: string;
+  /** Groups lots visually: two builders on one repository share one parcel. */
+  repositoryPath: string | null;
   phase: SessionPhase;
   level: number;
   debrief: CompletionDebrief | null;
@@ -24,6 +26,11 @@ const palette = {
 };
 const positions = [{ x: -290, y: -105 }, { x: 0, y: -148 }, { x: 290, y: -105 }, { x: -155, y: 145 }, { x: 155, y: 145 }];
 const actorColors = [0x4d7f75, 0x5c7196, 0x8b6653, 0x6f8050, 0x856383];
+// In-parcel placements when one repository hosts several builders.
+const compoundOffsets: Record<number, { x: number; y: number; scale: number }[]> = {
+  2: [{ x: -64, y: 0, scale: 0.8 }, { x: 68, y: 16, scale: 0.7 }],
+  3: [{ x: -86, y: -8, scale: 0.68 }, { x: 8, y: 24, scale: 0.62 }, { x: 94, y: 0, scale: 0.62 }],
+};
 
 const needsYouPhases = new Set<SessionPhase>(['approval', 'input', 'waiting']);
 const litPhases = new Set<SessionPhase>(['planning', 'reading', 'editing', 'testing', 'reviewing', 'completed']);
@@ -52,6 +59,8 @@ export class VillageScene {
   readonly root = new Container();
   private readonly world = new Container();
   private readonly lots = positions.map((position, index) => new ProjectLot(index as VillageLot['slot'], position.x, position.y, actorColors[index]));
+  private readonly compounds = new Container();
+  private compoundSignature = '';
   private readonly signpost = new Container();
   private readonly signpostText: Text;
   private readonly willows: { sway: Container; seed: number }[] = [];
@@ -80,6 +89,7 @@ export class VillageScene {
       this.willows.push({ sway: willow.sway, seed: spot.x });
       this.world.addChild(willow.tree);
     }
+    this.world.addChild(this.compounds);
     for (const lot of this.lots) this.world.addChild(lot.container);
     // Foreground willows overlap the bottom edge for storybook depth.
     for (const spot of [{ x: -392, y: 226, s: 0.82 }, { x: 396, y: 220, s: 0.76 }]) {
@@ -190,9 +200,71 @@ export class VillageScene {
 
   update(snapshots: ProjectSnapshot[]): void {
     for (const snapshot of snapshots) this.lots[snapshot.slot].update(snapshot);
+    this.placeParcels(snapshots);
     const needsYou = snapshots.filter((snapshot) => snapshot.projectId && needsYouPhases.has(snapshot.phase)).length;
     this.signpost.visible = needsYou > 0;
     if (needsYou > 0) this.signpostText.text = needsYou === 1 ? '1 builder needs you' : `${needsYou} builders need you`;
+  }
+
+  /**
+   * One repository, one place: lots that share a repositoryPath gather on the
+   * primary member's parcel as smaller houses with their own builders, chips,
+   * and pennants; the parcel carries a single shared nameplate.
+   */
+  private placeParcels(snapshots: ProjectSnapshot[]): void {
+    const groups = new Map<string, ProjectSnapshot[]>();
+    for (const snapshot of snapshots) {
+      if (!snapshot.projectId || !snapshot.repositoryPath) continue;
+      const members = groups.get(snapshot.repositoryPath) ?? [];
+      members.push(snapshot);
+      groups.set(snapshot.repositoryPath, members);
+    }
+    const placedCompound = new Map<VillageLot['slot'], { x: number; y: number; scale: number }>();
+    const compoundParcels: { anchor: { x: number; y: number }; name: string; count: number; selected: boolean }[] = [];
+    for (const members of groups.values()) {
+      if (members.length < 2) continue;
+      members.sort((a, b) => a.slot - b.slot);
+      const anchor = positions[members[0].slot];
+      const offsets = compoundOffsets[Math.min(members.length, 3)];
+      members.forEach((member, index) => {
+        const offset = offsets[Math.min(index, offsets.length - 1)];
+        placedCompound.set(member.slot, { x: anchor.x + offset.x, y: anchor.y + offset.y, scale: offset.scale });
+      });
+      compoundParcels.push({
+        anchor,
+        name: members[0].projectName.replace(/ · \d+$/, ''),
+        count: members.length,
+        selected: members.some((member) => member.selected),
+      });
+    }
+    for (const lot of this.lots) {
+      const compound = placedCompound.get(lot.slot);
+      if (compound) lot.setPlacement(compound.x, compound.y, compound.scale, true);
+      else lot.setPlacement(positions[lot.slot].x, positions[lot.slot].y, 1, false);
+    }
+    const signature = JSON.stringify(compoundParcels);
+    if (signature === this.compoundSignature) return;
+    this.compoundSignature = signature;
+    this.compounds.removeChildren().forEach((child) => child.destroy({ children: true }));
+    for (const parcel of compoundParcels) {
+      const ground = new Container();
+      const base = new Graphics();
+      base.poly([-172, -66, 172, -66, 172, 78, -172, 78]).fill({ color: palette.grassLight, alpha: 0.72 });
+      base.poly([-172, 78, 172, 78, 160, 92, -160, 92]).fill({ color: palette.soil, alpha: 0.9 });
+      base.roundRect(-171, -65, 342, 144, 15).stroke({ color: palette.cream, alpha: 0.12, width: 2 });
+      const sign = new Graphics();
+      const nameText = new Text({ text: trim(parcel.name, 22), style: textStyle(12.5, palette.cream, '600') });
+      nameText.anchor.set(0.5);
+      nameText.position.set(0, 103);
+      const width = Math.min(Math.max(nameText.width + 26, 96), 214);
+      sign.roundRect(-width / 2, 90, width, 26, 8).fill({ color: 0x47331f, alpha: 0.94 }).stroke({ color: 0xe4bd68, alpha: 0.55, width: 1.5 });
+      const crew = new Text({ text: `${parcel.count} builders on site`, style: textStyle(8.5, 0xd9e7d6, '700') });
+      crew.anchor.set(0.5);
+      crew.position.set(0, 127);
+      ground.addChild(base, sign, nameText, crew);
+      ground.position.set(parcel.anchor.x, parcel.anchor.y);
+      this.compounds.addChild(ground);
+    }
   }
 
   tick(deltaMs: number): void {
@@ -310,6 +382,15 @@ class ProjectLot {
     this.smoke.position.set(56, -30);
     this.smoke.visible = false;
     this.container.addChild(this.base, this.ring, this.house, this.smoke, this.pennant, this.actor.container, this.lantern, this.signBoard, this.signText, this.chipBackground, this.statusText, this.bubble);
+  }
+
+  /** Compound placement: scaled into a shared parcel, own plot and nameplate hidden. */
+  setPlacement(x: number, y: number, scale: number, compact: boolean): void {
+    this.container.position.set(x, y);
+    this.container.scale.set(scale);
+    this.base.visible = !compact;
+    this.signBoard.visible = !compact;
+    this.signText.visible = !compact;
   }
 
   update(snapshot: ProjectSnapshot): void {
