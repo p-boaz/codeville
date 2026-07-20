@@ -55,7 +55,7 @@ CODEVILLE_REAL_E2E_CONFIG='[{"path":"/absolute/path/graphletter","task":"Approve
 ## Troubleshooting
 
 - **Codex unavailable:** run `codex --version` and sign in to Codex, then reopen Codeville.
-- **Model access error:** verify the account can start a `gpt-5.6-sol` Codex session.
+- **Model access error:** verify the account can start a `gpt-5.6-sol` Codex session. If your plan offers a different GPT-5.6 variant (e.g. free-tier Terra), launch with an override from a terminal: `CODEVILLE_MODEL=gpt-5.6-terra ./Codeville.app/Contents/MacOS/Codeville` — every feature works identically.
 - **Unsigned app warning:** use Control-click → Open. The complete source path remains available.
 - **One builder pauses:** select its project card to see the exact error or approval request. Other projects continue independently.
 - **Repeat the demo:** **Reset demo village** (labeled **Reset village…** when no demo lots exist) asks for confirmation, then clears Codeville progression; **Create demo village** provisions fresh fixture copies.

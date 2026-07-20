@@ -54,7 +54,7 @@ Source of truth: [challenge overview](https://openai.devpost.com/), [FAQ](https:
 - [ ] Explicitly say how both Codex **and** GPT-5.6 were used.
 - [ ] Show real project operation, completion, and relaunch persistence.
 - [ ] Keep duration under 3:00 and avoid private information/third-party copyrighted media.
-- [ ] Upload to YouTube as **Public**.
+- [ ] Upload to YouTube as **Public or Unlisted** (organizer email 2026-07-19: Unlisted is fine; verify playback in an incognito window).
 - [ ] Verify 1080p, audio, captions, duration, and logged-out playback.
 - [ ] Add public YouTube URL to Devpost and submission draft.
 
@@ -83,7 +83,7 @@ Source of truth: [challenge overview](https://openai.devpost.com/), [FAQ](https:
 
 ## Final risk checks
 
-- [ ] Confirm the Codex account used by judges can access `gpt-5.6-sol`; document a contact/fallback if model entitlement fails.
+- [x] Judges without `gpt-5.6-sol` entitlement (free-tier Terra) can launch with `CODEVILLE_MODEL=<model>` — documented in the judge guide troubleshooting.
 - [ ] Confirm the unsigned macOS distribution flow is acceptable; notarize/sign if credentials are available.
 - [ ] Perform a deeper name/legal clearance before commercial use. A preliminary web search found an unrelated software-services business using “Codeville”; the hackathon entry should not imply affiliation.
 - [ ] Do not claim OpenAI sponsorship, endorsement, or ownership of Codeville.

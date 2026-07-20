@@ -28,7 +28,8 @@ import { ProjectRuntimeRegistry, type ProjectRuntime } from './project-runtime-r
 import { ScaffoldManager, type ScaffoldRecord } from './scaffold-manager';
 
 const executeFile = promisify(execFile);
-const model = 'gpt-5.6-sol';
+// Overridable so judges whose plan lacks -sol (e.g. free-tier Terra) can still test.
+const model = process.env.CODEVILLE_MODEL?.trim() || 'gpt-5.6-sol';
 const isDevelopment = !app.isPackaged;
 const useDevelopmentRenderer = isDevelopment && process.env.CODEVILLE_E2E !== '1';
 const demoNames = ['Acorn Tasks', 'Lantern API', 'Mossy Docs', 'Pine Tests', 'Willow UI'] as const;

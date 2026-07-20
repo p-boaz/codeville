@@ -28,9 +28,9 @@ Target: 2:35–2:55, public YouTube, clear spoken audio. Record at 1920×1080 wi
 
 ## 1:50–2:15 — Command center flow
 
-**Visual:** Scroll the **Village feed** — named rows like "kalshi-mlb · Editing health.js", "Running pnpm test", "Tests passed". Open **Redirect builder**, send a direction mid-turn, and show "New direction sent" appear in the feed. Answer a builder's question in the reply card; show the Workshop ledger and a queued work order starting with **Start next order**. Quit and reopen — everything restores.
+**Visual:** Scroll the **Village feed** — named rows like "acorn-tasks · Editing health.js", "Running pnpm test", "Tests passed". Open **Redirect builder**, send a direction mid-turn, and show **"New direction — <your words>"** appear in the feed. Add a **second workshop** on one repository — two smaller houses gather on one shared parcel, "2 builders on site". Answer a builder's question in the reply card (note the context paragraph above the question); show a queued work order starting with **Start next order**. Quit and reopen — everything restores.
 
-**Voice:** "The Village feed is one stream across every builder — real files, real commands, real test results, named per repository. Need to course-correct? Redirect a builder mid-turn without stopping it. Questions and approvals route to the desk; the ledger keeps a verified history; work orders queue the day's tasks — and a debrief's recommended follow-up becomes the next order in one click. Quit and relaunch — the town, its levels, ledger, and queues all persist."
+**Voice:** "The Village feed is one stream across every builder — real files, real commands, real test results, named per repository. Need to course-correct? Redirect a builder mid-turn without stopping it. Put two builders on one repository and they share a single parcel — two people, one job site. Questions arrive with the context to answer them; work orders queue the day's tasks and auto-start as improvements land. Quit and relaunch — the town, its levels, ledger, and queues all persist."
 
 ## 2:15–2:45 — Build story and impact
 
